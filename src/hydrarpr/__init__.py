@@ -1,3 +1,6 @@
+import os
+
+
 bl_info = {
     "name": "USD Hydra: RPR",
     "author": "AMD",
@@ -14,6 +17,7 @@ bl_info = {
     "category": "Render"
 }
 
+
 from bpy.utils import register_class, unregister_class, register_classes_factory
 import addon_utils
 
@@ -23,34 +27,9 @@ from . import (
     ui,
 )
 
-register_ui, unregister_ui = register_classes_factory(
-    [
-        ui.USDHYDRA_RENDER_PT_final,
-        ui.USDHYDRA_RENDER_PT_viewport,
-        ui.USDHYDRA_RENDER_PT_denoise_final,
-        ui.USDHYDRA_RENDER_PT_denoise_viewport,
-        ui.USDHYDRA_RENDER_PT_film_final,
-        ui.USDHYDRA_RENDER_PT_pixel_filter_final,
-        ui.USDHYDRA_RENDER_PT_pixel_filter_viewport,
-        ui.USDHYDRA_RENDER_PT_quality_final,
-        ui.USDHYDRA_RENDER_PT_quality_viewport,
-        ui.USDHYDRA_RENDER_PT_samples_final,
-        ui.USDHYDRA_RENDER_PT_samples_viewport,
-    ]
-)
-
-register_properties, unregister_properties = register_classes_factory(
-    [
-        properties.ContourSettings,
-        properties.DenoiseSettings,
-        properties.InteractiveQualitySettings,
-        properties.QualitySettings,
-        properties.RenderSettings,
-        # properties.ViewportRenderSettings,
-        # properties.FinalRenderSettings,
-        properties.SceneProperties,
-    ]
-)
+DEBUG_MODE = bool(int(os.environ.get('HYDRARPR_BLENDER_DEBUG', 0)))
+LIBS_DIR = PLUGIN_ROOT_DIR.parent.parent / f'libs-{PYTHON_VERSION}' if DEBUG_MODE else \
+                 PLUGIN_ROOT_DIR / f'libs-{PYTHON_VERSION}'
 
 
 def register():

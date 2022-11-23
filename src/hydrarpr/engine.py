@@ -1,129 +1,73 @@
+import os
 from pathlib import Path
 
 import bpy
 
-from usdhydra.engine import USDHydraEngine
-from usdhydra.utils import register_delegate, unregister_delegate
+import _usdhydra
+from usdhydra.engine import HydraRenderEngine
 
 
-def register():
-    register_delegate(Path(__file__).parent, USDHydraHdRprEngine.bl_idname)
-
-
-def unregister():
-    unregister_delegate(USDHydraHdRprEngine.bl_idname)
-
-
-class USDHydraHdRprEngine(USDHydraEngine):
-    bl_idname = 'HdRprBlenderDelegate'
-    bl_label = "USD Hydra: RPR"
-    bl_info = "USD Hydra HdRpr rendering plugin"
+class RPRHydraRenderEngine(HydraRenderEngine):
+    bl_idname = 'RPRHydraRenderEngine'
+    bl_label = "Hydra: RPR"
+    bl_info = "Hydra Radeon ProRender delegate"
 
     bl_use_preview = True
-    bl_use_shading_nodes = True
-    bl_use_shading_nodes_custom = False
-    bl_use_gpu_context = True
 
-    session = None
+    delegate_id = "HdRprPlugin"
 
-    delegate_name = "HdRprPlugin"
+    @classmethod
+    def register(cls):
+        super().register(cls)
 
-    def sync_final_delegate_settings(self):
-        hdrpr = bpy.context.scene.hdrpr.final
-        quality = hdrpr.quality
-        denoise = hdrpr.denoise
+        # Temporary force enabling of Lighting Compiler until it'll be by default enabled on RPR side
+        # Required for some cards
+        os.environ['GPU_ENABLE_LC'] = "1"
+        _usdhydra.register_plugin(Path(__file__))
 
-        # settings = {
-        #     'rpr:alpha:enable': hdrpr.enable_alpha,
-        #     'rpr:core:renderQuality': hdrpr.render_quality,
-        #     'rpr:core:renderMode': hdrpr.render_mode,
-        #     'rpr:ambientOcclusion:radius': hdrpr.ao_radius,
-        #     'rpr:maxSamples': hdrpr.max_samples,
-        #     'rpr:adaptiveSampling:minSamples': hdrpr.min_adaptive_samples,
-        #     'rpr:adaptiveSampling:noiseTreshold': hdrpr.variance_threshold,
-        #     'rpr:quality:rayDepth': quality.max_ray_depth,
-        #     'rpr:quality:rayDepthDiffuse': quality.max_ray_depth_diffuse,
-        #     'rpr:quality:rayDepthGlossy': quality.max_ray_depth_glossy,
-        #     'rpr:quality:rayDepthRefraction': quality.max_ray_depth_refraction,
-        #     'rpr:quality:rayDepthGlossyRefraction': quality.max_ray_depth_glossy_refraction,
-        #     'rpr:quality:rayDepthShadow': quality.max_ray_depth_shadow,
-        #     'rpr:quality:raycastEpsilon': quality.raycast_epsilon,
-        #     'rpr:quality:radianceClamping': quality.radiance_clamping,
-        #     'rpr:denoising:enable': denoise.enable,
-        #     'rpr:denoising:minIter': denoise.min_iter,
-        #     'rpr:denoising:iterStep': denoise.iter_step,
-        # }
-        #
-        # if hdrpr.render_quality == 'Northstar':
-        #     settings['rpr:quality:imageFilterRadius'] = hdrpr.quality.pixel_filter_width
+    def get_delegate_settings(self, engine_type):
+        if engine_type == 'VIEWPORT':
+            settings = bpy.context.scene.hydra_rpr.viewport
+            quality = settings.interactive_quality
+        else:
+            settings = bpy.context.scene.hydra_rpr.final
+            quality = settings.quality
 
-        settings = (
-            ('rpr:alpha:enable', hdrpr.enable_alpha),
-            ('rpr:core:renderQuality', hdrpr.render_quality),
-            ('rpr:core:renderMode', hdrpr.render_mode),
-            ('rpr:ambientOcclusion:radius', hdrpr.ao_radius),
-            ('rpr:maxSamples', hdrpr.max_samples),
-            ('rpr:adaptiveSampling:minSamples', hdrpr.min_adaptive_samples),
-            ('rpr:adaptiveSampling:noiseTreshold', hdrpr.variance_threshold),
-            ('rpr:quality:rayDepth', quality.max_ray_depth),
-            ('rpr:quality:rayDepthDiffuse', quality.max_ray_depth_diffuse),
-            ('rpr:quality:rayDepthGlossy', quality.max_ray_depth_glossy),
-            ('rpr:quality:rayDepthRefraction', quality.max_ray_depth_refraction),
-            ('rpr:quality:rayDepthGlossyRefraction', quality.max_ray_depth_glossy_refraction),
-            ('rpr:quality:rayDepthShadow', quality.max_ray_depth_shadow),
-            ('rpr:quality:raycastEpsilon', quality.raycast_epsilon),
-            ('rpr:quality:radianceClamping', quality.radiance_clamping),
-            ('rpr:denoising:enable', denoise.enable),
-            ('rpr:denoising:minIter', denoise.min_iter),
-            ('rpr:denoising:iterStep', denoise.iter_step),
-        )
+        denoise = settings.denoise
 
-        if hdrpr.render_quality == 'Northstar':
-            settings += (('rpr:quality:imageFilterRadius', hdrpr.quality.pixel_filter_width),)
+        result = {
+            'rpr:alpha:enable': settings.enable_alpha,
+            'rpr:core:renderQuality': settings.render_quality,
+            'rpr:core:renderMode': settings.render_mode,
+            'rpr:ambientOcclusion:radius': settings.ao_radius,
+            'rpr:maxSamples': settings.max_samples,
+            'rpr:adaptiveSampling:minSamples': settings.min_adaptive_samples,
+            'rpr:adaptiveSampling:noiseTreshold': settings.variance_threshold,
 
-        return settings
+            'rpr:denoising:enable': denoise.enable,
+            'rpr:denoising:minIter': denoise.min_iter,
+            'rpr:denoising:iterStep': denoise.iter_step,
+        }
 
-    def sync_viewport_delegate_settings(self):
-        hdrpr = bpy.context.scene.hdrpr.viewport
-        quality = hdrpr.interactive_quality
-        denoise = hdrpr.denoise
+        if engine_type == 'VIEWPORT':
+            result |= {
+                'rpr:quality:rayDepth': quality.max_ray_depth,
+                'rpr:quality:rayDepthDiffuse': quality.max_ray_depth_diffuse,
+                'rpr:quality:rayDepthGlossy': quality.max_ray_depth_glossy,
+                'rpr:quality:rayDepthRefraction': quality.max_ray_depth_refraction,
+                'rpr:quality:rayDepthGlossyRefraction': quality.max_ray_depth_glossy_refraction,
+                'rpr:quality:rayDepthShadow': quality.max_ray_depth_shadow,
+                'rpr:quality:raycastEpsilon': quality.raycast_epsilon,
+                'rpr:quality:radianceClamping': quality.radiance_clamping,
+            }
+        else:
+            result |= {
+                'rpr:quality:interactive:rayDepth': quality.max_ray_depth,
+                'rpr:quality:interactive:downscale:enable': quality.enable_downscale,
+                'rpr:quality:interactive:downscale:resolution': quality.resolution_downscale,
+            }
 
-        # settings = {
-        #     'rpr:alpha:enable': False,
-        #     'rpr:core:renderQuality': hdrpr.render_quality,
-        #     'rpr:core:renderMode': hdrpr.render_mode,
-        #     'rpr:ambientOcclusion:radius': hdrpr.ao_radius,
-        #     'rpr:maxSamples': hdrpr.max_samples,
-        #     'rpr:adaptiveSampling:minSamples': hdrpr.min_adaptive_samples,
-        #     'rpr:adaptiveSampling:noiseTreshold': hdrpr.variance_threshold,
-        #     'rpr:quality:interactive:rayDepth': quality.max_ray_depth,
-        #     'rpr:quality:interactive:downscale:enable': quality.enable_downscale,
-        #     'rpr:quality:interactive:downscale:resolution': quality.resolution_downscale,
-        #     'rpr:denoising:enable': denoise.enable,
-        #     'rpr:denoising:minIter': denoise.min_iter,
-        #     'rpr:denoising:iterStep': denoise.iter_step,
-        # }
-        #
-        # if hdrpr.render_quality == 'Northstar':
-        #     settings['rpr:quality:imageFilterRadius'] = hdrpr.quality.pixel_filter_width
+        if settings.render_quality == 'Northstar':
+            result['rpr:quality:imageFilterRadius'] = settings.quality.pixel_filter_width
 
-        settings = (
-            ('rpr:alpha:enable', False),
-            ('rpr:core:renderQuality', hdrpr.render_quality),
-            ('rpr:core:renderMode', hdrpr.render_mode),
-            ('rpr:ambientOcclusion:radius', hdrpr.ao_radius),
-            ('rpr:maxSamples', hdrpr.max_samples),
-            ('rpr:adaptiveSampling:minSamples', hdrpr.min_adaptive_samples),
-            ('rpr:adaptiveSampling:noiseTreshold', hdrpr.variance_threshold),
-            ('rpr:quality:interactive:rayDepth', quality.max_ray_depth),
-            ('rpr:quality:interactive:downscale:enable', quality.enable_downscale),
-            ('rpr:quality:interactive:downscale:resolution', quality.resolution_downscale),
-            ('rpr:denoising:enable', denoise.enable),
-            ('rpr:denoising:minIter', denoise.min_iter),
-            ('rpr:denoising:iterStep', denoise.iter_step),
-        )
-
-        if hdrpr.render_quality == 'Northstar':
-            settings += (('rpr:quality:imageFilterRadius', hdrpr.quality.pixel_filter_width),)
-
-        return settings
+        return result

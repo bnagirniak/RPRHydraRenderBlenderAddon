@@ -1,5 +1,4 @@
 import math
-import os
 
 import bpy
 from bpy.props import (
@@ -11,25 +10,20 @@ from bpy.props import (
 )
 
 
-# Temporary force enabling of Lighting Compiler until it'll be by default enabled on RPR side
-# Required for some cards
-os.environ['GPU_ENABLE_LC'] = "1"
-
-
-class RendererProperties(bpy.types.PropertyGroup):
+class Properties(bpy.types.PropertyGroup):
     bl_type = None
 
     @classmethod
     def register(cls):
-        cls.bl_type.hdrpr = bpy.props.PointerProperty(
-            name="USDHydra HdRpr properties",
-            description="USDHydra HdRpr properties",
+        cls.bl_type.usdhydra_rpr = bpy.props.PointerProperty(
+            name="Hydra RPR",
+            description="Hydra RPR properties",
             type=cls,
         )
 
     @classmethod
     def unregister(cls):
-        del cls.bl_type.hdrpr
+        del cls.bl_type.usdhydra_rpr
 
 
 class QualitySettings(bpy.types.PropertyGroup):
@@ -286,16 +280,18 @@ class RenderSettings(bpy.types.PropertyGroup):
     denoise: PointerProperty(type=DenoiseSettings)
 
 
-class FinalRenderSettings(bpy.types.PropertyGroup):
-    render_settings: bpy.props.PointerProperty(type=RenderSettings)
-
-
-class ViewportRenderSettings(bpy.types.PropertyGroup):
-    render_settings: bpy.props.PointerProperty(type=RenderSettings)
-
-
-class SceneProperties(RendererProperties):
+class SceneProperties(Properties):
     bl_type = bpy.types.Scene
 
     final: bpy.props.PointerProperty(type=RenderSettings)
     viewport: bpy.props.PointerProperty(type=RenderSettings)
+
+
+register, unregister = bpy.utils.register_classes_factory((
+    ContourSettings,
+    DenoiseSettings,
+    InteractiveQualitySettings,
+    QualitySettings,
+    RenderSettings,
+    SceneProperties,
+))

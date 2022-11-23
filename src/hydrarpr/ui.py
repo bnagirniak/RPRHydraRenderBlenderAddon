@@ -1,11 +1,22 @@
-from .engine import USDHydraHdRprEngine
-from usdhydra.ui import USDHydra_Panel
+import bpy
+
+from .engine import RPRHydraRenderEngine
 
 
-class USDHYDRA_RENDER_PT_final(USDHydra_Panel):
+class Panel(bpy.types.Panel):
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = 'render'
+    COMPAT_ENGINES = {RPRHydraRenderEngine.bl_idname}
+
+    @classmethod
+    def poll(cls, context):
+        return context.engine in cls.COMPAT_ENGINES
+
+
+class USDHYDRA_RENDER_PT_final(Panel):
     bl_label = "RPR Settings"
     bl_parent_id = 'USDHYDRA_RENDER_PT_render_settings_final'
-    COMPAT_ENGINES = {USDHydraHdRprEngine.bl_idname}
 
     def draw(self, context):
         render_settings = context.scene.hdrpr.final
@@ -20,11 +31,10 @@ class USDHYDRA_RENDER_PT_final(USDHydra_Panel):
         col.prop(render_settings, "render_mode")
 
 
-class USDHYDRA_RENDER_PT_samples_final(USDHydra_Panel):
+class USDHYDRA_RENDER_PT_samples_final(Panel):
     bl_label = "Samples"
     bl_parent_id = 'USDHYDRA_RENDER_PT_render_settings_final'
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {USDHydraHdRprEngine.bl_idname}
 
     def draw(self, context):
         render_settings = context.scene.hdrpr.final
@@ -42,12 +52,11 @@ class USDHYDRA_RENDER_PT_samples_final(USDHydra_Panel):
         row.prop(render_settings, "min_adaptive_samples")
 
 
-class USDHYDRA_RENDER_PT_quality_final(USDHydra_Panel):
+class USDHYDRA_RENDER_PT_quality_final(Panel):
     bl_label = "Quality"
     bl_parent_id = 'USDHYDRA_RENDER_PT_render_settings_final'
     bl_space_type = 'PROPERTIES'
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {USDHydraHdRprEngine.bl_idname}
 
     def draw(self, context):
         render_settings = context.scene.hdrpr.final
@@ -228,3 +237,18 @@ class USDHYDRA_RENDER_PT_pixel_filter_viewport(USDHydra_Panel):
 
         col = self.layout.column()
         col.prop(quality, "pixel_filter_width")
+
+
+register, unregister = bpy.utils.register_classes_factory((
+    USDHYDRA_RENDER_PT_final,
+    USDHYDRA_RENDER_PT_viewport,
+    USDHYDRA_RENDER_PT_denoise_final,
+    USDHYDRA_RENDER_PT_denoise_viewport,
+    USDHYDRA_RENDER_PT_film_final,
+    USDHYDRA_RENDER_PT_pixel_filter_final,
+    USDHYDRA_RENDER_PT_pixel_filter_viewport,
+    USDHYDRA_RENDER_PT_quality_final,
+    USDHYDRA_RENDER_PT_quality_viewport,
+    USDHYDRA_RENDER_PT_samples_final,
+    USDHYDRA_RENDER_PT_samples_viewport,
+))
