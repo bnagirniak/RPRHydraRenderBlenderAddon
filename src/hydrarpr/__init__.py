@@ -2,7 +2,7 @@ bl_info = {
     "name": "USD Hydra: RPR",
     "author": "AMD",
     "version": (1, 0, 0),
-    "blender": (3, 2, 0),
+    "blender": (3, 5, 0),
     "location": "Info header > Render engine menu",
     "description": "USD Hydra RPR renderer",
     "tracker_url": "",

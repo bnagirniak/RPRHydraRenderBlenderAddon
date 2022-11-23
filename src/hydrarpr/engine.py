@@ -16,7 +16,7 @@ def unregister():
 
 class USDHydraHdRprEngine(USDHydraEngine):
     bl_idname = 'HdRprBlenderDelegate'
-    bl_label = "USD Hydra: Rpr"
+    bl_label = "USD Hydra: RPR"
     bl_info = "USD Hydra HdRpr rendering plugin"
 
     bl_use_preview = True
