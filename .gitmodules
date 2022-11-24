@@ -1,0 +1,3 @@
+[submodule "RadeonProRenderUSD"]
+	path = RadeonProRenderUSD
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/RadeonProRenderUSD
