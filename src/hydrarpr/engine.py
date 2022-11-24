@@ -7,6 +7,9 @@ import _usdhydra
 from usdhydra.engine import HydraRenderEngine
 
 
+LIBS_DIR = Path(__file__).parent.parent / "libs"
+
+
 class RPRHydraRenderEngine(HydraRenderEngine):
     bl_idname = 'RPRHydraRenderEngine'
     bl_label = "Hydra: RPR"
@@ -23,7 +26,8 @@ class RPRHydraRenderEngine(HydraRenderEngine):
         # Temporary force enabling of Lighting Compiler until it'll be by default enabled on RPR side
         # Required for some cards
         os.environ['GPU_ENABLE_LC'] = "1"
-        _usdhydra.register_plugin(Path(__file__))
+
+        _usdhydra.register_plugin(str(LIBS_DIR / "plugin"), str(LIBS_DIR / "lib"))
 
     def get_delegate_settings(self, engine_type):
         if engine_type == 'VIEWPORT':
@@ -71,3 +75,8 @@ class RPRHydraRenderEngine(HydraRenderEngine):
             result['rpr:quality:imageFilterRadius'] = settings.quality.pixel_filter_width
 
         return result
+
+
+register, unregister = bpy.utils.register_classes_factory((
+    RPRHydraRenderEngine,
+))

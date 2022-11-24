@@ -14,57 +14,56 @@ class Panel(bpy.types.Panel):
         return context.engine in cls.COMPAT_ENGINES
 
 
-class USDHYDRA_RENDER_PT_final(Panel):
-    bl_label = "RPR Settings"
-    bl_parent_id = 'USDHYDRA_RENDER_PT_render_settings_final'
+class HYDRA_RPR_RENDER_PT_final(Panel):
+    bl_label = "RPR Final Settings"
 
     def draw(self, context):
-        render_settings = context.scene.hdrpr.final
+        settings = context.scene.hydra_rpr.final
 
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
 
         col = layout.column()
-        # col.prop(render_settings, "device")
-        col.prop(render_settings, "render_quality")
-        col.prop(render_settings, "render_mode")
+        col.prop(settings, "render_quality")
+        col.prop(settings, "render_mode")
 
 
-class USDHYDRA_RENDER_PT_samples_final(Panel):
-    bl_label = "Samples"
-    bl_parent_id = 'USDHYDRA_RENDER_PT_render_settings_final'
+class FinalPanel(bpy.types.Panel):
+    bl_parent_id = HYDRA_RPR_RENDER_PT_final.bl_idname
     bl_options = {'DEFAULT_CLOSED'}
 
-    def draw(self, context):
-        render_settings = context.scene.hdrpr.final
+    def settings(self, context):
+        return context.scene.hydra_rpr.final
 
+
+class HYDRA_RPR_RENDER_PT_samples_final(FinalPanel):
+    bl_label = "Samples"
+
+    def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        layout.prop(render_settings, "max_samples")
+        settings = self.settings(context)
+        layout.prop(settings, "max_samples")
 
         col = layout.column(align=True)
-        col.prop(render_settings, "variance_threshold")
+        col.prop(settings, "variance_threshold")
         row = col.row()
-        row.enabled = render_settings.variance_threshold > 0.0
-        row.prop(render_settings, "min_adaptive_samples")
+        row.enabled = settings.variance_threshold > 0.0
+        row.prop(settings, "min_adaptive_samples")
 
 
-class USDHYDRA_RENDER_PT_quality_final(Panel):
+class HYDRA_RPR_RENDER_PT_quality_final(FinalPanel):
     bl_label = "Quality"
-    bl_parent_id = 'USDHYDRA_RENDER_PT_render_settings_final'
-    bl_space_type = 'PROPERTIES'
-    bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
-        render_settings = context.scene.hdrpr.final
-        quality = render_settings.quality
-
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
+
+        quality = self.settings(context).quality
 
         col = layout.column(align=True)
         col.prop(quality, "max_ray_depth")
@@ -77,178 +76,147 @@ class USDHYDRA_RENDER_PT_quality_final(Panel):
         layout.prop(quality, "radiance_clamping")
 
 
-class USDHYDRA_RENDER_PT_denoise_final(USDHydra_Panel):
+class HYDRA_RPR_RENDER_PT_denoise_final(FinalPanel):
     bl_label = ""
-    bl_parent_id = 'USDHYDRA_RENDER_PT_render_settings_final'
-    bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {USDHydraHdRprEngine.bl_idname}
 
     def draw_header(self, context):
-        denoise = context.scene.hdrpr.final.denoise
-        self.layout.prop(denoise, "enable")
+        self.layout.prop(self.settings(context).denoise, "enable")
 
     def draw(self, context):
-        denoise = context.scene.hdrpr.final.denoise
-
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
+
+        denoise = self.settings(context).denoise
 
         layout.enabled = denoise.enable
         layout.prop(denoise, "min_iter")
         layout.prop(denoise, "iter_step")
 
 
-class USDHYDRA_RENDER_PT_film_final(USDHydra_Panel):
+class HYDRA_RPR_RENDER_PT_film_final(FinalPanel):
     bl_label = "Film"
-    bl_parent_id = 'USDHYDRA_RENDER_PT_render_settings_final'
-    bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {USDHydraHdRprEngine.bl_idname}
 
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        render_settings = context.scene.hdrpr.final
-
-        layout.prop(render_settings, "enable_alpha", text="Transparent Background")
+        layout.prop(self.settings(context), "enable_alpha", text="Transparent Background")
 
 
-class USDHYDRA_RENDER_PT_pixel_filter_final(USDHydra_Panel):
+class HYDRA_RPR_RENDER_PT_pixel_filter_final(FinalPanel):
     bl_label = "Pixel Filter"
-    bl_parent_id = 'USDHYDRA_RENDER_PT_render_settings_final'
-    bl_space_type = 'PROPERTIES'
-    bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {USDHydraHdRprEngine.bl_idname}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.hydra_rpr.viewport.render_quality == 'Northstar'
 
     def draw(self, context):
-        render_settings = context.scene.hdrpr.final
-        quality = render_settings.quality
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
 
-        self.layout.use_property_split = True
-        self.layout.use_property_decorate = False
-
-        col = self.layout.column()
-        col.prop(quality, "pixel_filter_width")
+        layout.prop(self.settings(context).quality, "pixel_filter_width")
 
 #
 # VIEWPORT RENDER SETTINGS
 #
-class USDHYDRA_RENDER_PT_viewport(USDHydra_Panel):
-    bl_label = "RPR Settings"
-    bl_parent_id = 'USDHYDRA_RENDER_PT_render_settings_viewport'
-    COMPAT_ENGINES = {USDHydraHdRprEngine.bl_idname}
+class HYDRA_RPR_RENDER_PT_viewport(Panel):
+    bl_label = "RPR Viewport Settings"
 
     def draw(self, context):
-        render_settings = context.scene.hdrpr.viewport
-
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        layout = layout.column()
-        # layout.prop(render_settings, "device")
-        layout.prop(render_settings, "render_quality")
-        layout.prop(render_settings, "render_mode")
+        settings = context.scene.hydra_rpr.viewport
+        layout.prop(settings, "render_quality")
+        layout.prop(settings, "render_mode")
 
 
-class USDHYDRA_RENDER_PT_samples_viewport(USDHydra_Panel):
-    bl_label = "Samples"
-    bl_parent_id = 'USDHYDRA_RENDER_PT_render_settings_viewport'
+class ViewportPanel(bpy.types.Panel):
+    bl_parent_id = HYDRA_RPR_RENDER_PT_viewport.bl_idname
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {USDHydraHdRprEngine.bl_idname}
+
+    def settings(self, context):
+        return context.scene.hydra_rpr.viewport
+
+
+class HYDRA_RPR_RENDER_PT_samples_viewport(ViewportPanel):
+    bl_label = "Samples"
 
     def draw(self, context):
-        render_settings = context.scene.hdrpr.viewport
-
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        layout.prop(render_settings, "max_samples")
+        settings = self.settings(context)
+        layout.prop(settings, "max_samples")
 
         col = layout.column(align=True)
-        col.prop(render_settings, "variance_threshold")
+        col.prop(settings, "variance_threshold")
         row = col.row()
-        row.enabled = render_settings.variance_threshold > 0.0
-        row.prop(render_settings, "min_adaptive_samples")
+        row.enabled = settings.variance_threshold > 0.0
+        row.prop(settings, "min_adaptive_samples")
 
 
-class USDHYDRA_RENDER_PT_quality_viewport(USDHydra_Panel):
+class HYDRA_RPR_RENDER_PT_quality_viewport(ViewportPanel):
     bl_label = "Quality"
-    bl_parent_id = 'USDHYDRA_RENDER_PT_render_settings_viewport'
-    bl_space_type = 'PROPERTIES'
-    bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {USDHydraHdRprEngine.bl_idname}
 
     def draw(self, context):
-        render_settings = context.scene.hdrpr.viewport
-        quality = render_settings.interactive_quality
-
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
 
+        quality = self.settings(context).interactive_quality
         layout.prop(quality, "max_ray_depth")
-        # layout.prop(quality, "enable_downscale")
-        # layout.prop(quality, "resolution_downscale")
+        layout.prop(quality, "enable_downscale")
+        layout.prop(quality, "resolution_downscale")
 
 
-class USDHYDRA_RENDER_PT_denoise_viewport(USDHydra_Panel):
+class HYDRA_RPR_RENDER_PT_denoise_viewport(ViewportPanel):
     bl_label = ""
-    bl_parent_id = 'USDHYDRA_RENDER_PT_render_settings_viewport'
-    bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {USDHydraHdRprEngine.bl_idname}
 
     def draw_header(self, context):
-        denoise = context.scene.hdrpr.viewport.denoise
-        self.layout.prop(denoise, "enable")
+        self.layout.prop(self.settings(context).denoise, "enable")
 
     def draw(self, context):
-        denoise = context.scene.hdrpr.viewport.denoise
-
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
 
+        denoise = self.settings(context).denoise
         layout.enabled = denoise.enable
         layout.prop(denoise, "min_iter")
         layout.prop(denoise, "iter_step")
 
 
-class USDHYDRA_RENDER_PT_pixel_filter_viewport(USDHydra_Panel):
+class HYDRA_RPR_RENDER_PT_pixel_filter_viewport(ViewportPanel):
     bl_label = "Pixel Filter"
-    bl_parent_id = 'USDHYDRA_RENDER_PT_render_settings_viewport'
-    bl_space_type = 'PROPERTIES'
-    bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {USDHydraHdRprEngine.bl_idname}
 
     @classmethod
     def poll(cls, context):
-        return super().poll(context) and context.scene.hdrpr.viewport.render_quality == 'Northstar'
+        return context.scene.hydra_rpr.viewport.render_quality == 'Northstar'
 
     def draw(self, context):
-        render_settings = context.scene.hdrpr.viewport
-        quality = render_settings.quality
-
         self.layout.use_property_split = True
         self.layout.use_property_decorate = False
 
         col = self.layout.column()
-        col.prop(quality, "pixel_filter_width")
+        col.prop(self.settings(context).quality, "pixel_filter_width")
 
 
 register, unregister = bpy.utils.register_classes_factory((
-    USDHYDRA_RENDER_PT_final,
-    USDHYDRA_RENDER_PT_viewport,
-    USDHYDRA_RENDER_PT_denoise_final,
-    USDHYDRA_RENDER_PT_denoise_viewport,
-    USDHYDRA_RENDER_PT_film_final,
-    USDHYDRA_RENDER_PT_pixel_filter_final,
-    USDHYDRA_RENDER_PT_pixel_filter_viewport,
-    USDHYDRA_RENDER_PT_quality_final,
-    USDHYDRA_RENDER_PT_quality_viewport,
-    USDHYDRA_RENDER_PT_samples_final,
-    USDHYDRA_RENDER_PT_samples_viewport,
+    HYDRA_RPR_RENDER_PT_final,
+    HYDRA_RPR_RENDER_PT_viewport,
+    HYDRA_RPR_RENDER_PT_denoise_final,
+    HYDRA_RPR_RENDER_PT_denoise_viewport,
+    HYDRA_RPR_RENDER_PT_film_final,
+    HYDRA_RPR_RENDER_PT_pixel_filter_final,
+    HYDRA_RPR_RENDER_PT_pixel_filter_viewport,
+    HYDRA_RPR_RENDER_PT_quality_final,
+    HYDRA_RPR_RENDER_PT_quality_viewport,
+    HYDRA_RPR_RENDER_PT_samples_final,
+    HYDRA_RPR_RENDER_PT_samples_viewport,
 ))
