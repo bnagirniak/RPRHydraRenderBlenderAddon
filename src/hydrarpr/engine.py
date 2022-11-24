@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import bpy
@@ -7,7 +6,7 @@ import _usdhydra
 from usdhydra.engine import HydraRenderEngine
 
 
-LIBS_DIR = Path(__file__).parent.parent / "libs"
+LIBS_DIR = Path(__file__).parent / "libs"
 
 
 class RPRHydraRenderEngine(HydraRenderEngine):
@@ -21,13 +20,9 @@ class RPRHydraRenderEngine(HydraRenderEngine):
 
     @classmethod
     def register(cls):
-        super().register(cls)
+        super().register()
 
-        # Temporary force enabling of Lighting Compiler until it'll be by default enabled on RPR side
-        # Required for some cards
-        os.environ['GPU_ENABLE_LC'] = "1"
-
-        _usdhydra.register_plugin(str(LIBS_DIR / "plugin"), str(LIBS_DIR / "lib"))
+        _usdhydra.register_plugins([str(LIBS_DIR / "plugin")], [str(LIBS_DIR / "lib")])
 
     def get_delegate_settings(self, engine_type):
         if engine_type == 'VIEWPORT':
@@ -55,6 +50,12 @@ class RPRHydraRenderEngine(HydraRenderEngine):
 
         if engine_type == 'VIEWPORT':
             result |= {
+                'rpr:quality:interactive:rayDepth': quality.max_ray_depth,
+                'rpr:quality:interactive:downscale:enable': quality.enable_downscale,
+                'rpr:quality:interactive:downscale:resolution': quality.resolution_downscale,
+            }
+        else:
+            result |= {
                 'rpr:quality:rayDepth': quality.max_ray_depth,
                 'rpr:quality:rayDepthDiffuse': quality.max_ray_depth_diffuse,
                 'rpr:quality:rayDepthGlossy': quality.max_ray_depth_glossy,
@@ -63,12 +64,6 @@ class RPRHydraRenderEngine(HydraRenderEngine):
                 'rpr:quality:rayDepthShadow': quality.max_ray_depth_shadow,
                 'rpr:quality:raycastEpsilon': quality.raycast_epsilon,
                 'rpr:quality:radianceClamping': quality.radiance_clamping,
-            }
-        else:
-            result |= {
-                'rpr:quality:interactive:rayDepth': quality.max_ray_depth,
-                'rpr:quality:interactive:downscale:enable': quality.enable_downscale,
-                'rpr:quality:interactive:downscale:resolution': quality.resolution_downscale,
             }
 
         if settings.render_quality == 'Northstar':

@@ -15,6 +15,7 @@ class Panel(bpy.types.Panel):
 
 
 class HYDRA_RPR_RENDER_PT_final(Panel):
+    bl_idname = 'HYDRA_RPR_RENDER_PT_final'
     bl_label = "RPR Final Settings"
 
     def draw(self, context):
@@ -31,6 +32,8 @@ class HYDRA_RPR_RENDER_PT_final(Panel):
 
 class FinalPanel(bpy.types.Panel):
     bl_parent_id = HYDRA_RPR_RENDER_PT_final.bl_idname
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
     bl_options = {'DEFAULT_CLOSED'}
 
     def settings(self, context):
@@ -123,6 +126,7 @@ class HYDRA_RPR_RENDER_PT_pixel_filter_final(FinalPanel):
 # VIEWPORT RENDER SETTINGS
 #
 class HYDRA_RPR_RENDER_PT_viewport(Panel):
+    bl_idname = 'HYDRA_RPR_RENDER_PT_viewport'
     bl_label = "RPR Viewport Settings"
 
     def draw(self, context):
@@ -137,6 +141,8 @@ class HYDRA_RPR_RENDER_PT_viewport(Panel):
 
 class ViewportPanel(bpy.types.Panel):
     bl_parent_id = HYDRA_RPR_RENDER_PT_viewport.bl_idname
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
     bl_options = {'DEFAULT_CLOSED'}
 
     def settings(self, context):
@@ -209,14 +215,15 @@ class HYDRA_RPR_RENDER_PT_pixel_filter_viewport(ViewportPanel):
 
 register, unregister = bpy.utils.register_classes_factory((
     HYDRA_RPR_RENDER_PT_final,
-    HYDRA_RPR_RENDER_PT_viewport,
+    HYDRA_RPR_RENDER_PT_samples_final,
+    HYDRA_RPR_RENDER_PT_quality_final,
     HYDRA_RPR_RENDER_PT_denoise_final,
-    HYDRA_RPR_RENDER_PT_denoise_viewport,
     HYDRA_RPR_RENDER_PT_film_final,
     HYDRA_RPR_RENDER_PT_pixel_filter_final,
-    HYDRA_RPR_RENDER_PT_pixel_filter_viewport,
-    HYDRA_RPR_RENDER_PT_quality_final,
-    HYDRA_RPR_RENDER_PT_quality_viewport,
-    HYDRA_RPR_RENDER_PT_samples_final,
+
+    HYDRA_RPR_RENDER_PT_viewport,
     HYDRA_RPR_RENDER_PT_samples_viewport,
+    HYDRA_RPR_RENDER_PT_quality_viewport,
+    HYDRA_RPR_RENDER_PT_denoise_viewport,
+    HYDRA_RPR_RENDER_PT_pixel_filter_viewport,
 ))
