@@ -1,3 +1,6 @@
 [submodule "RadeonProRenderUSD"]
 	path = RadeonProRenderUSD
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/RadeonProRenderUSD
+[submodule "USD"]
+	path = USD
+	url = https://github.com/PixarAnimationStudios/USD

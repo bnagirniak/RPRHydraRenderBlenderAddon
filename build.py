@@ -20,7 +20,6 @@ import argparse
 import platform
 import shutil
 
-
 OS = platform.system()
 repo_dir = Path(__file__).parent.parent.resolve()
 
@@ -70,7 +69,7 @@ def usd(bin_dir, jobs, clean, build_var, prman, prman_location):
     if prman:
         args += ['--prman']
         args += ['--prman-location', prman_location]
-    
+
     build_usd.main(bin_dir, clean, build_var, *args)
 
 
@@ -172,7 +171,7 @@ def main():
     ap.add_argument("-j", required=False, type=int, default=0,
                     help="Number of jobs run in parallel")
     ap.add_argument("-build-var", required=False, type=str, default="release",
-                    choices=('release', 'relwithdebuginfo'),    # TODO: add 'debug' build variant
+                    choices=('release', 'relwithdebuginfo'),  # TODO: add 'debug' build variant
                     help="Build variant for USD, HdRPR and dependencies. (default: release)")
     ap.add_argument("-clean", required=False, action="store_true",
                     help="Clean build dirs before start USD or HdRPR build")
