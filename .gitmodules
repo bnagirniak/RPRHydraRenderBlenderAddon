@@ -4,3 +4,6 @@
 [submodule "USD"]
 	path = USD
 	url = https://github.com/PixarAnimationStudios/USD
+[submodule "MaterialX"]
+	path = MaterialX
+	url = https://github.com/AcademySoftwareFoundation/MaterialX
