@@ -126,7 +126,6 @@ def usd(blender_libs_dir, bin_dir, compiler, jobs, clean, build_var, prman, prma
         SHAREDLIBEXT = ".lib" if OS == 'Windows' else ""
         PYTHON_EXTENSION = ".exe" if OS == 'Windows' else ""
 
-        #USD_CXX_FLAGS = f"{CMAKE_CXX_FLAGS} /DOIIO_STATIC_DEFINE /DOSL_STATIC_DEFINE"
         USD_CXX_FLAGS = "/DOIIO_STATIC_DEFINE /DOSL_STATIC_DEFINE"
         USD_PLATFORM_FLAGS = [f"-DCMAKE_CXX_FLAGS={USD_CXX_FLAGS}",
                               "-D_PXR_CXX_DEFINITIONS=/DBOOST_ALL_NO_LIB",
@@ -198,13 +197,7 @@ def usd(blender_libs_dir, bin_dir, compiler, jobs, clean, build_var, prman, prma
                           f"-DTBB_LIBRARIES_DEBUG={blender_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
                           #################################################
                           f"-DBoost_INCLUDE_DIR={blender_libs_dir}/boost/include",
-                          #f"-DMaterialX_DIR={blender_libs_dir}/materialx/lib/cmake/MaterialX",
                           f"-DMaterialX_DIR={bin_dir}/USD/install/lib/cmake/MaterialX",
-                          #f'-DMATERIALX_BASE_DIR={blender_libs_dir}/materialx',
-                          #f'-DMATERIALX_STDLIB_DIR={blender_libs_dir}/materialx/libraries',
-                          #f'-DMATERIALX_STDLIB_DIR=C:/GPUOpen/BlenderUSDHydraAddon/bin/2211/USD/build/MaterialX-1.38.6/bin/libraries',
-                          #f'-DMATERIALX_PYTHON_DIR={blender_libs_dir}/materialx/python/Release',
-                          #f'-DMATERIALX_RESOURCES_DIR={blender_libs_dir}/materialx/libraries/resources'
                           ]
 
 
@@ -286,7 +279,6 @@ def hdrpr(blender_libs_dir, bin_dir, compiler, jobs, clean, build_var):
         f'-DCMAKE_INSTALL_PREFIX={bin_dir}/USD/install',
         '-DRPR_BUILD_AS_HOUDINI_PLUGIN=FALSE',
         f'-DPYTHON_EXECUTABLE={sys.executable}',
-        #f"-DOPENEXR_LIBRARIES={blender_libs_dir}/imath/lib/{LIBPREFIX}Imath{OPENEXR_VERSION_POSTFIX}{SHAREDLIBEXT}",
         f"-DIMATH_INCLUDE_DIR={blender_libs_dir}/imath/include/imath",
         f"-DOPENEXR_INCLUDE_DIR={blender_libs_dir}/openexr/include/OpenEXR",
         f"-DBoost_INCLUDE_DIR={blender_libs_dir}/boost/include",
