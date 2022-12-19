@@ -1,4 +1,4 @@
-# **********************************************************************
+#**********************************************************************
 # Copyright 2022 Advanced Micro Devices, Inc
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ********************************************************************
+#********************************************************************
+
+import os
 from pathlib import Path
 
 import bpy
@@ -34,16 +36,21 @@ class RPRHydraRenderEngine(HydraRenderEngine):
 
     @classmethod
     def register(cls):
-        super().register()
+        # super().register(cls)
+
+        # Temporary force enabling of Lighting Compiler until it'll be by default enabled on RPR side
+        # Required for some cards
+        os.environ['GPU_ENABLE_LC'] = "1"
 
         _usdhydra.register_plugins([str(LIBS_DIR / "plugin")], [str(LIBS_DIR / "lib")])
 
     def get_delegate_settings(self, engine_type):
+        return {}
         if engine_type == 'VIEWPORT':
-            settings = bpy.context.scene.hydra_rpr.viewport
+            settings = bpy.context.scene.usdhydra_rpr.viewport
             quality = settings.interactive_quality
         else:
-            settings = bpy.context.scene.hydra_rpr.final
+            settings = bpy.context.scene.usdhydra_rpr.final
             quality = settings.quality
 
         denoise = settings.denoise
@@ -64,12 +71,6 @@ class RPRHydraRenderEngine(HydraRenderEngine):
 
         if engine_type == 'VIEWPORT':
             result |= {
-                'rpr:quality:interactive:rayDepth': quality.max_ray_depth,
-                'rpr:quality:interactive:downscale:enable': quality.enable_downscale,
-                'rpr:quality:interactive:downscale:resolution': quality.resolution_downscale,
-            }
-        else:
-            result |= {
                 'rpr:quality:rayDepth': quality.max_ray_depth,
                 'rpr:quality:rayDepthDiffuse': quality.max_ray_depth_diffuse,
                 'rpr:quality:rayDepthGlossy': quality.max_ray_depth_glossy,
@@ -78,6 +79,12 @@ class RPRHydraRenderEngine(HydraRenderEngine):
                 'rpr:quality:rayDepthShadow': quality.max_ray_depth_shadow,
                 'rpr:quality:raycastEpsilon': quality.raycast_epsilon,
                 'rpr:quality:radianceClamping': quality.radiance_clamping,
+            }
+        else:
+            result |= {
+                'rpr:quality:interactive:rayDepth': quality.max_ray_depth,
+                'rpr:quality:interactive:downscale:enable': quality.enable_downscale,
+                'rpr:quality:interactive:downscale:resolution': quality.resolution_downscale,
             }
 
         if settings.render_quality == 'Northstar':

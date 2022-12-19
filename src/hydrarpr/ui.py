@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ********************************************************************
+
 import bpy
 
 from .engine import RPRHydraRenderEngine
@@ -28,12 +29,12 @@ class Panel(bpy.types.Panel):
         return context.engine in cls.COMPAT_ENGINES
 
 
-class RPR_HYDRA_RENDER_PT_final(Panel):
-    bl_idname = 'RPR_HYDRA_RENDER_PT_final'
+class HYDRA_RPR_RENDER_PT_final(Panel):
     bl_label = "RPR Final Settings"
 
+
     def draw(self, context):
-        settings = context.scene.hydra_rpr.final
+        settings = context.scene.usdhydra_rpr.final
 
         layout = self.layout
         layout.use_property_split = True
@@ -45,16 +46,17 @@ class RPR_HYDRA_RENDER_PT_final(Panel):
 
 
 class FinalPanel(bpy.types.Panel):
-    bl_parent_id = RPR_HYDRA_RENDER_PT_final.bl_idname
+    # bl_parent_id = HYDRA_RPR_RENDER_PT_final.bl_idname
+    bl_options = {'DEFAULT_CLOSED'}
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
-    bl_options = {'DEFAULT_CLOSED'}
+    bl_context = 'render'
 
     def settings(self, context):
-        return context.scene.hydra_rpr.final
+        return context.scene.usdhydra_rpr.final
 
 
-class RPR_HYDRA_RENDER_PT_samples_final(FinalPanel):
+class HYDRA_RPR_RENDER_PT_samples_final(FinalPanel):
     bl_label = "Samples"
 
     def draw(self, context):
@@ -72,7 +74,7 @@ class RPR_HYDRA_RENDER_PT_samples_final(FinalPanel):
         row.prop(settings, "min_adaptive_samples")
 
 
-class RPR_HYDRA_RENDER_PT_quality_final(FinalPanel):
+class HYDRA_RPR_RENDER_PT_quality_final(FinalPanel):
     bl_label = "Quality"
 
     def draw(self, context):
@@ -93,7 +95,7 @@ class RPR_HYDRA_RENDER_PT_quality_final(FinalPanel):
         layout.prop(quality, "radiance_clamping")
 
 
-class RPR_HYDRA_RENDER_PT_denoise_final(FinalPanel):
+class HYDRA_RPR_RENDER_PT_denoise_final(FinalPanel):
     bl_label = ""
 
     def draw_header(self, context):
@@ -111,7 +113,7 @@ class RPR_HYDRA_RENDER_PT_denoise_final(FinalPanel):
         layout.prop(denoise, "iter_step")
 
 
-class RPR_HYDRA_RENDER_PT_film_final(FinalPanel):
+class HYDRA_RPR_RENDER_PT_film_final(FinalPanel):
     bl_label = "Film"
 
     def draw(self, context):
@@ -122,12 +124,12 @@ class RPR_HYDRA_RENDER_PT_film_final(FinalPanel):
         layout.prop(self.settings(context), "enable_alpha", text="Transparent Background")
 
 
-class RPR_HYDRA_RENDER_PT_pixel_filter_final(FinalPanel):
+class HYDRA_RPR_RENDER_PT_pixel_filter_final(FinalPanel):
     bl_label = "Pixel Filter"
 
     @classmethod
     def poll(cls, context):
-        return context.scene.hydra_rpr.viewport.render_quality == 'Northstar'
+        return context.scene.usdhydra_rpr.viewport.render_quality == 'Northstar'
 
     def draw(self, context):
         layout = self.layout
@@ -139,8 +141,7 @@ class RPR_HYDRA_RENDER_PT_pixel_filter_final(FinalPanel):
 #
 # VIEWPORT RENDER SETTINGS
 #
-class RPR_HYDRA_RENDER_PT_viewport(Panel):
-    bl_idname = 'RPR_HYDRA_RENDER_PT_viewport'
+class HYDRA_RPR_RENDER_PT_viewport(Panel):
     bl_label = "RPR Viewport Settings"
 
     def draw(self, context):
@@ -148,22 +149,23 @@ class RPR_HYDRA_RENDER_PT_viewport(Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        settings = context.scene.hydra_rpr.viewport
+        settings = context.scene.usdhydra_rpr.viewport
         layout.prop(settings, "render_quality")
         layout.prop(settings, "render_mode")
 
 
 class ViewportPanel(bpy.types.Panel):
-    bl_parent_id = RPR_HYDRA_RENDER_PT_viewport.bl_idname
+    # bl_parent_id = HYDRA_RPR_RENDER_PT_viewport.bl_idname
+    bl_options = {'DEFAULT_CLOSED'}
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
-    bl_options = {'DEFAULT_CLOSED'}
+    bl_context = 'render'
 
     def settings(self, context):
-        return context.scene.hydra_rpr.viewport
+        return context.scene.usdhydra_rpr.viewport
 
 
-class RPR_HYDRA_RENDER_PT_samples_viewport(ViewportPanel):
+class HYDRA_RPR_RENDER_PT_samples_viewport(ViewportPanel):
     bl_label = "Samples"
 
     def draw(self, context):
@@ -181,7 +183,7 @@ class RPR_HYDRA_RENDER_PT_samples_viewport(ViewportPanel):
         row.prop(settings, "min_adaptive_samples")
 
 
-class RPR_HYDRA_RENDER_PT_quality_viewport(ViewportPanel):
+class HYDRA_RPR_RENDER_PT_quality_viewport(ViewportPanel):
     bl_label = "Quality"
 
     def draw(self, context):
@@ -195,7 +197,7 @@ class RPR_HYDRA_RENDER_PT_quality_viewport(ViewportPanel):
         layout.prop(quality, "resolution_downscale")
 
 
-class RPR_HYDRA_RENDER_PT_denoise_viewport(ViewportPanel):
+class HYDRA_RPR_RENDER_PT_denoise_viewport(ViewportPanel):
     bl_label = ""
 
     def draw_header(self, context):
@@ -212,12 +214,12 @@ class RPR_HYDRA_RENDER_PT_denoise_viewport(ViewportPanel):
         layout.prop(denoise, "iter_step")
 
 
-class RPR_HYDRA_RENDER_PT_pixel_filter_viewport(ViewportPanel):
+class HYDRA_RPR_RENDER_PT_pixel_filter_viewport(ViewportPanel):
     bl_label = "Pixel Filter"
 
     @classmethod
     def poll(cls, context):
-        return context.scene.hydra_rpr.viewport.render_quality == 'Northstar'
+        return context.scene.usdhydra_rpr.viewport.render_quality == 'Northstar'
 
     def draw(self, context):
         self.layout.use_property_split = True
@@ -228,16 +230,15 @@ class RPR_HYDRA_RENDER_PT_pixel_filter_viewport(ViewportPanel):
 
 
 register, unregister = bpy.utils.register_classes_factory((
-    RPR_HYDRA_RENDER_PT_final,
-    RPR_HYDRA_RENDER_PT_samples_final,
-    RPR_HYDRA_RENDER_PT_quality_final,
-    RPR_HYDRA_RENDER_PT_denoise_final,
-    RPR_HYDRA_RENDER_PT_film_final,
-    RPR_HYDRA_RENDER_PT_pixel_filter_final,
-
-    RPR_HYDRA_RENDER_PT_viewport,
-    RPR_HYDRA_RENDER_PT_samples_viewport,
-    RPR_HYDRA_RENDER_PT_quality_viewport,
-    RPR_HYDRA_RENDER_PT_denoise_viewport,
-    RPR_HYDRA_RENDER_PT_pixel_filter_viewport,
+    HYDRA_RPR_RENDER_PT_final,
+    HYDRA_RPR_RENDER_PT_viewport,
+    HYDRA_RPR_RENDER_PT_denoise_final,
+    HYDRA_RPR_RENDER_PT_denoise_viewport,
+    HYDRA_RPR_RENDER_PT_film_final,
+    HYDRA_RPR_RENDER_PT_pixel_filter_final,
+    HYDRA_RPR_RENDER_PT_pixel_filter_viewport,
+    HYDRA_RPR_RENDER_PT_quality_final,
+    HYDRA_RPR_RENDER_PT_quality_viewport,
+    HYDRA_RPR_RENDER_PT_samples_final,
+    HYDRA_RPR_RENDER_PT_samples_viewport,
 ))

@@ -21,7 +21,7 @@ import platform
 import shutil
 
 OS = platform.system()
-repo_dir = Path(__file__).parent.parent.resolve()
+repo_dir = Path(__file__).parent.resolve()
 
 
 def rm_dir(d: Path):
@@ -58,21 +58,6 @@ def print_start(msg):
 -------------------------------------------------------------""")
 
 
-def usd(bin_dir, jobs, clean, build_var, prman, prman_location):
-    print_start("Building USD")
-
-    import build_usd
-    args = []
-    if jobs > 0:
-        args += ['-j', str(jobs)]
-
-    if prman:
-        args += ['--prman']
-        args += ['--prman-location', prman_location]
-
-    build_usd.main(bin_dir, clean, build_var, *args)
-
-
 def _cmake(d, compiler, jobs, build_var, args):
     cur_dir = os.getcwd()
     ch_dir(d)
@@ -105,10 +90,143 @@ def _cmake(d, compiler, jobs, build_var, args):
         ch_dir(cur_dir)
 
 
-def hdrpr(bin_dir, compiler, jobs, clean, build_var):
+def materialx(bin_dir, compiler, jobs, clean, build_var):
+    materialx_dir = repo_dir / "MaterialX"
+
+    if clean:
+        rm_dir(materialx_dir / "build")
+
+    _cmake(materialx_dir, compiler, jobs, build_var, [
+        '-DMATERIALX_BUILD_SHARED_LIBS=ON',
+        f'-DCMAKE_INSTALL_PREFIX={bin_dir / "USD/install"}',
+    ])
+
+
+def usd(blender_libs_dir, bin_dir, compiler, jobs, clean, build_var, prman, prman_location):
+    print_start("Building USD")
+    usd_dir = repo_dir / "USD"
+
+    if clean:
+        rm_dir(usd_dir / "build")
+
+    cur_dir = os.getcwd()
+    os.chdir(str(usd_dir))
+
+    try:
+        check_call('git', 'apply', '--whitespace=nowarn', str(repo_dir / "usd.diff"))
+
+        PYTHON_SHORT_VERSION_NO_DOTS = 310
+        BOOST_VERSION_SHORT = 180
+        BOOST_COMPILER_STRING = "-vc142"
+
+        PYTHON_POSTFIX = "_d" if build_var == 'debug' else ""
+        OPENEXR_VERSION_POSTFIX = "_d" if build_var == 'debug' else ""
+        LIBEXT = ".lib" if OS == 'Windows' else ".a"
+        LIBPREFIX = "" if OS == 'Windows' else "lib"
+        SHAREDLIBEXT = ".lib" if OS == 'Windows' else ""
+        PYTHON_EXTENSION = ".exe" if OS == 'Windows' else ""
+
+        #USD_CXX_FLAGS = f"{CMAKE_CXX_FLAGS} /DOIIO_STATIC_DEFINE /DOSL_STATIC_DEFINE"
+        USD_CXX_FLAGS = "/DOIIO_STATIC_DEFINE /DOSL_STATIC_DEFINE"
+        USD_PLATFORM_FLAGS = [f"-DCMAKE_CXX_FLAGS={USD_CXX_FLAGS}",
+                              "-D_PXR_CXX_DEFINITIONS=/DBOOST_ALL_NO_LIB",
+                              f"-DCMAKE_SHARED_LINKER_FLAGS_INIT=/LIBPATH:{blender_libs_dir}/tbb/lib",
+                              "-DPython_FIND_REGISTRY=NEVER",
+                              f"-DPYTHON_INCLUDE_DIRS={blender_libs_dir}/python/{PYTHON_SHORT_VERSION_NO_DOTS}/include",
+                              f"-DPYTHON_LIBRARY={blender_libs_dir}/python/{PYTHON_SHORT_VERSION_NO_DOTS}/libs/python{PYTHON_SHORT_VERSION_NO_DOTS}{PYTHON_POSTFIX}{LIBEXT}"
+                              ]
+
+        DEFAULT_BOOST_FLAGS = [
+            f"-DBoost_COMPILER:STRING={BOOST_COMPILER_STRING}",
+            "-DBoost_USE_MULTITHREADED=ON",
+            "-DBoost_USE_STATIC_LIBS=OFF",
+            "-DBoost_USE_STATIC_RUNTIME=OFF",
+            f"-DBOOST_ROOT={blender_libs_dir}/boost",
+            "-DBoost_NO_SYSTEM_PATHS=ON",
+            "-DBoost_NO_BOOST_CMAKE=ON",
+            f"-DBoost_ADDITIONAL_VERSIONS={BOOST_VERSION_SHORT}",
+            f"-DBOOST_LIBRARYDIR={blender_libs_dir}/boost/lib/",
+            "-DBoost_USE_DEBUG_PYTHON=On"
+            ]
+
+        USD_EXTRA_ARGS = [*DEFAULT_BOOST_FLAGS,
+                          *USD_PLATFORM_FLAGS,
+                          f"-DOPENSUBDIV_ROOT_DIR={blender_libs_dir}/opensubdiv",
+                          f"-DOpenImageIO_ROOT={blender_libs_dir}/openimageio",
+                          f"-DOPENEXR_LIBRARIES={blender_libs_dir}/imath/lib/{LIBPREFIX}Imath{OPENEXR_VERSION_POSTFIX}{SHAREDLIBEXT}",
+                          f"-DOPENEXR_INCLUDE_DIR={blender_libs_dir}/imath/include",
+                          f"-DImath_DIR={blender_libs_dir}/imath",
+                          f"-DOPENVDB_LOCATION={blender_libs_dir}/openvdb",
+                          "-DPXR_ENABLE_PYTHON_SUPPORT=ON",
+                          "-DPXR_USE_PYTHON_3=ON",
+                          "-DPXR_BUILD_IMAGING=ON",
+                          "-DPXR_BUILD_TESTS=OFF",
+                          "-DPXR_BUILD_EXAMPLES=OFF",
+                          "-DPXR_BUILD_TUTORIALS=OFF",
+                          "-DPXR_BUILD_USDVIEW=OFF",
+                          "-DPXR_ENABLE_HDF5_SUPPORT=OFF",
+                          "-DPXR_ENABLE_MATERIALX_SUPPORT=ON",
+                          "-DPXR_ENABLE_OPENVDB_SUPPORT=ON",
+                          #f"-DPYTHON_EXECUTABLE={blender_libs_dir}/python/{PYTHON_SHORT_VERSION_NO_DOTS}/bin/python{PYTHON_POSTFIX}{PYTHON_EXTENSION}",
+                          f"-DPYTHON_EXECUTABLE={sys.executable}",
+                          "-DPXR_BUILD_MONOLITHIC=ON",
+                          "# OSL is an optional dependency of the Imaging module. However, since that",
+                          "# module was included for its support for converting primitive shapes (sphere,",
+                          "# cube, etc.) to geometry, it's not necessary. Disabling it will make it",
+                          "# simpler to build Blender; currently only Cycles uses OSL.",
+                          "-DPXR_ENABLE_OSL_SUPPORT=OFF",
+                          "# Enable OpenGL for Hydra support. Note that this indirectly also adds an X11",
+                          "# dependency on Linux. This would be good to eliminate for headless and Wayland",
+                          "# only builds, however is not worse than what Blender already links to for",
+                          "# official releases currently.",
+                          "-DPXR_ENABLE_GL_SUPPORT=ON",
+                          "# OIIO is used for loading image textures in Hydra Storm / Embree renderers.",
+                          "-DPXR_BUILD_OPENIMAGEIO_PLUGIN=ON",
+                          "# USD 22.03 does not support OCIO 2.x",
+                          "# Tracking ticket https://github.com/PixarAnimationStudios/USD/issues/1386",
+                          "-DPXR_BUILD_OPENCOLORIO_PLUGIN=OFF",
+                          "-DPXR_ENABLE_PTEX_SUPPORT=OFF",
+                          "-DPXR_BUILD_USD_TOOLS=OFF",
+                          "-DCMAKE_DEBUG_POSTFIX=_d",
+                          "-DBUILD_SHARED_LIBS=ON",
+                          f"-DTBB_INCLUDE_DIRS={blender_libs_dir}/tbb/include",
+                          f"-DTBB_LIBRARIES={blender_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
+                          f"-DTbb_TBB_LIBRARY={blender_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
+                          f"-DTBB_tbb_LIBRARY_RELEASE={blender_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
+                          "# USD wants the tbb debug lib set even when you are doing a release build",
+                          "# Otherwise it will error out during the cmake configure phase.",
+                          f"-DTBB_LIBRARIES_DEBUG={blender_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
+                          #################################################
+                          f"-DBoost_INCLUDE_DIR={blender_libs_dir}/boost/include",
+                          #f"-DMaterialX_DIR={blender_libs_dir}/materialx/lib/cmake/MaterialX",
+                          f"-DMaterialX_DIR={bin_dir}/USD/install/lib/cmake/MaterialX",
+                          #f'-DMATERIALX_BASE_DIR={blender_libs_dir}/materialx',
+                          #f'-DMATERIALX_STDLIB_DIR={blender_libs_dir}/materialx/libraries',
+                          #f'-DMATERIALX_STDLIB_DIR=C:/GPUOpen/BlenderUSDHydraAddon/bin/2211/USD/build/MaterialX-1.38.6/bin/libraries',
+                          #f'-DMATERIALX_PYTHON_DIR={blender_libs_dir}/materialx/python/Release',
+                          #f'-DMATERIALX_RESOURCES_DIR={blender_libs_dir}/materialx/libraries/resources'
+                          ]
+
+
+        try:
+            _cmake(usd_dir, compiler, jobs, build_var, [
+                *USD_EXTRA_ARGS,
+                f'-DCMAKE_INSTALL_PREFIX={bin_dir / "USD/install"}',
+            ])
+
+        finally:
+            print("Reverting USD repo")
+            check_call('git', 'checkout', '--', '*')
+            check_call('git', 'clean', '-f')
+
+    finally:
+        os.chdir(cur_dir)
+
+
+def hdrpr(blender_libs_dir, bin_dir, compiler, jobs, clean, build_var):
     print_start("Building HdRPR")
 
-    hdrpr_dir = repo_dir / "deps/HdRPR"
+    hdrpr_dir = repo_dir / "RadeonProRenderUSD"
     usd_dir = bin_dir / "USD/install"
 
     if clean:
@@ -116,34 +234,76 @@ def hdrpr(bin_dir, compiler, jobs, clean, build_var):
 
     os.environ['PXR_PLUGINPATH_NAME'] = str(usd_dir / "lib/usd")
 
+    PYTHON_SHORT_VERSION_NO_DOTS = 310
+    BOOST_VERSION_SHORT = 180
+    BOOST_COMPILER_STRING = "-vc142"
+
+    PYTHON_POSTFIX = "_d" if build_var == 'debug' else ""
+    OPENEXR_VERSION_POSTFIX = "_d" if build_var == 'debug' else ""
+    LIBEXT = ".lib" if OS == 'Windows' else ".a"
+    LIBPREFIX = "" if OS == 'Windows' else "lib"
+    SHAREDLIBEXT = ".lib" if OS == 'Windows' else ""
+    PYTHON_EXTENSION = ".exe" if OS == 'Windows' else ""
+
+
+    os.add_dll_directory("C:/GPUOpen/Blender/lib/win64_vc15/imath/bin")
+    os.add_dll_directory("C:/GPUOpen/Blender/lib/win64_vc15/openexr/bin")
+    os.add_dll_directory("C:/GPUOpen/Blender/lib/win64_vc15/openvdb/bin")
+    os.add_dll_directory("C:/GPUOpen/Blender/lib/win64_vc15/OpenImageIO/bin")
+    os.add_dll_directory("C:/GPUOpen/Blender/lib/win64_vc15/tbb/bin")
+    os.add_dll_directory("C:/GPUOpen/Blender/lib/win64_vc15/boost/lib")
+    os.add_dll_directory("C:/GPUOpen/Blender/lib/win64_vc15/materialx/bin")
+    os.add_dll_directory(f"{bin_dir}/USD/install/lib")
+
+    os.environ['PATH'] = "C:/GPUOpen/Blender/lib/win64_vc15/imath/bin;" \
+                         "C:/GPUOpen/Blender/lib/win64_vc15/openexr/bin;" \
+                         "C:/GPUOpen/Blender/lib/win64_vc15/openvdb/bin;" \
+                         "C:/GPUOpen/Blender/lib/win64_vc15/OpenImageIO/bin;" \
+                         "C:/GPUOpen/Blender/lib/win64_vc15/tbb/bin;" + \
+                         "C:/GPUOpen/Blender/lib/win64_vc15/boost/lib;" + \
+                         "C:/GPUOpen/Blender/lib/win64_vc15/materialx/bin;" + \
+                         f"{bin_dir}/install/lib;" + \
+                  os.environ['PATH']
+
+    print(os.environ['PATH'])
+
+    DEFAULT_BOOST_FLAGS = [
+        f"-DBoost_COMPILER:STRING={BOOST_COMPILER_STRING}",
+        "-DBoost_USE_MULTITHREADED=ON",
+        "-DBoost_USE_STATIC_LIBS=OFF",
+        "-DBoost_USE_STATIC_RUNTIME=OFF",
+        f"-DBOOST_ROOT={blender_libs_dir}/boost",
+        "-DBoost_NO_SYSTEM_PATHS=ON",
+        "-DBoost_NO_BOOST_CMAKE=ON",
+        f"-DBoost_ADDITIONAL_VERSIONS={BOOST_VERSION_SHORT}",
+        f"-DBOOST_LIBRARYDIR={blender_libs_dir}/boost/lib/",
+        "-DBoost_USE_DEBUG_PYTHON=On"
+        ]
+
     _cmake(hdrpr_dir, compiler, jobs, build_var, [
+        *DEFAULT_BOOST_FLAGS,
         f'-Dpxr_DIR={usd_dir}',
-        f'-DCMAKE_INSTALL_PREFIX={bin_dir / "USD/install"}',
+        f'-DCMAKE_INSTALL_PREFIX={bin_dir}/USD/install',
         '-DRPR_BUILD_AS_HOUDINI_PLUGIN=FALSE',
         f'-DPYTHON_EXECUTABLE={sys.executable}',
-        f'-DOPENEXR_LOCATION={bin_dir / "USD/install"}'
+        #f"-DOPENEXR_LIBRARIES={blender_libs_dir}/imath/lib/{LIBPREFIX}Imath{OPENEXR_VERSION_POSTFIX}{SHAREDLIBEXT}",
+        f"-DIMATH_INCLUDE_DIR={blender_libs_dir}/imath/include/imath",
+        f"-DOPENEXR_INCLUDE_DIR={blender_libs_dir}/openexr/include/OpenEXR",
+        f"-DBoost_INCLUDE_DIR={blender_libs_dir}/boost/include",
+        f"-DImath_DIR={blender_libs_dir}/imath",
+        '-DPXR_BUILD_MONOLITHIC=ON',
+        f'-DUSD_LIBRARY_DIR={usd_dir}/lib',
+        f'-DUSD_MONOLITHIC_LIBRARY={usd_dir / "lib" / ("usd_ms_d.lib" if build_var == "debug" else "usd_ms.lib")}',
+        f"-DTBB_LIBRARY={blender_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
+        f"-DTBB_INCLUDE_DIR={blender_libs_dir}/tbb/include",
     ])
 
 
-def libs(bin_dir, build_var):
-    print_start("Copying binaries to libs")
-
-    import create_libs
-    create_libs.main(bin_dir, build_var)
-
-
-def mx_classes():
-    print_start("Generating code for MaterialX classes")
-
-    import generate_mx_classes
-    generate_mx_classes.main()
-
-
-def zip_addon():
+def zip_addon(bin_dir):
     print_start("Creating zip Addon")
 
     import create_zip_addon
-    create_zip_addon.main()
+    create_zip_addon.main(bin_dir)
 
 
 def main():
@@ -152,10 +312,14 @@ def main():
     # Add the arguments to the parser
     ap.add_argument("-all", required=False, action="store_true",
                     help="Build all")
+    ap.add_argument("-materialx", required=False, action="store_true",
+                    help="Build MaterialX")
     ap.add_argument("-usd", required=False, action="store_true",
                     help="Build USD")
     ap.add_argument("-hdrpr", required=False, action="store_true",
                     help="Build HdRPR")
+    ap.add_argument("-blender-libs-dir", required=False, type=str, default="",
+                    help="Path to root of Blender libs directory"),
     ap.add_argument("-bin-dir", required=False, type=str, default="",
                     help="Path to binary directory")
     ap.add_argument("-libs", required=False, action="store_true",
@@ -186,20 +350,17 @@ def main():
     bin_dir = bin_dir.absolute()
     bin_dir.mkdir(parents=True, exist_ok=True)
 
+    if args.all or args.materialx:
+        materialx(bin_dir, args.G, args.j, args.clean, args.build_var)
+
     if args.all or args.usd:
-        usd(bin_dir, args.j, args.clean, args.build_var, args.prman, args.prman_location)
+        usd(args.blender_libs_dir, bin_dir, args.G, args.j, args.clean, args.build_var, args.prman, args.prman_location)
 
     if args.all or args.hdrpr:
-        hdrpr(bin_dir, args.G, args.j, args.clean, args.build_var)
-
-    if args.all or args.libs:
-        libs(bin_dir, args.build_var)
-
-    if args.all or args.mx_classes:
-        mx_classes()
+        hdrpr(args.blender_libs_dir, bin_dir, args.G, args.j, args.clean, args.build_var)
 
     if args.all or args.addon:
-        zip_addon()
+        zip_addon(bin_dir)
 
     print_start("Finished")
 
