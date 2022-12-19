@@ -19,6 +19,10 @@ import os
 import argparse
 import platform
 import shutil
+import zipfile
+import zlib
+import os
+import re
 
 OS = platform.system()
 repo_dir = Path(__file__).parent.resolve()
@@ -102,7 +106,7 @@ def materialx(bin_dir, compiler, jobs, clean, build_var):
     ])
 
 
-def usd(blender_libs_dir, bin_dir, compiler, jobs, clean, build_var, prman, prman_location):
+def usd(blender_libs_dir, bin_dir, compiler, jobs, clean, build_var):
     print_start("Building USD")
     usd_dir = repo_dir / "USD"
 
@@ -166,7 +170,6 @@ def usd(blender_libs_dir, bin_dir, compiler, jobs, clean, build_var, prman, prma
                           "-DPXR_ENABLE_HDF5_SUPPORT=OFF",
                           "-DPXR_ENABLE_MATERIALX_SUPPORT=ON",
                           "-DPXR_ENABLE_OPENVDB_SUPPORT=ON",
-                          #f"-DPYTHON_EXECUTABLE={blender_libs_dir}/python/{PYTHON_SHORT_VERSION_NO_DOTS}/bin/python{PYTHON_POSTFIX}{PYTHON_EXTENSION}",
                           f"-DPYTHON_EXECUTABLE={sys.executable}",
                           "-DPXR_BUILD_MONOLITHIC=ON",
                           "# OSL is an optional dependency of the Imaging module. However, since that",
@@ -195,7 +198,6 @@ def usd(blender_libs_dir, bin_dir, compiler, jobs, clean, build_var, prman, prma
                           "# USD wants the tbb debug lib set even when you are doing a release build",
                           "# Otherwise it will error out during the cmake configure phase.",
                           f"-DTBB_LIBRARIES_DEBUG={blender_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
-                          #################################################
                           f"-DBoost_INCLUDE_DIR={blender_libs_dir}/boost/include",
                           f"-DMaterialX_DIR={bin_dir}/USD/install/lib/cmake/MaterialX",
                           ]
@@ -238,27 +240,20 @@ def hdrpr(blender_libs_dir, bin_dir, compiler, jobs, clean, build_var):
     SHAREDLIBEXT = ".lib" if OS == 'Windows' else ""
     PYTHON_EXTENSION = ".exe" if OS == 'Windows' else ""
 
+    dependencies = ['imath', 'openexr', 'openvdb', 'OpenImageIO', 'tbb', 'boost', 'materialx']
 
-    os.add_dll_directory("C:/GPUOpen/Blender/lib/win64_vc15/imath/bin")
-    os.add_dll_directory("C:/GPUOpen/Blender/lib/win64_vc15/openexr/bin")
-    os.add_dll_directory("C:/GPUOpen/Blender/lib/win64_vc15/openvdb/bin")
-    os.add_dll_directory("C:/GPUOpen/Blender/lib/win64_vc15/OpenImageIO/bin")
-    os.add_dll_directory("C:/GPUOpen/Blender/lib/win64_vc15/tbb/bin")
-    os.add_dll_directory("C:/GPUOpen/Blender/lib/win64_vc15/boost/lib")
-    os.add_dll_directory("C:/GPUOpen/Blender/lib/win64_vc15/materialx/bin")
+    path_str = ""
+    for deps in dependencies:
+        root_folder = 'bin'
+        if deps == 'boost':
+            root_folder = 'lib'
+
+        deps_path = f"{blender_libs_dir}/{deps}/{root_folder}"
+        path_str = path_str + deps_path + ";"
+        os.add_dll_directory(deps_path)
+
     os.add_dll_directory(f"{bin_dir}/USD/install/lib")
-
-    os.environ['PATH'] = "C:/GPUOpen/Blender/lib/win64_vc15/imath/bin;" \
-                         "C:/GPUOpen/Blender/lib/win64_vc15/openexr/bin;" \
-                         "C:/GPUOpen/Blender/lib/win64_vc15/openvdb/bin;" \
-                         "C:/GPUOpen/Blender/lib/win64_vc15/OpenImageIO/bin;" \
-                         "C:/GPUOpen/Blender/lib/win64_vc15/tbb/bin;" + \
-                         "C:/GPUOpen/Blender/lib/win64_vc15/boost/lib;" + \
-                         "C:/GPUOpen/Blender/lib/win64_vc15/materialx/bin;" + \
-                         f"{bin_dir}/install/lib;" + \
-                  os.environ['PATH']
-
-    print(os.environ['PATH'])
+    os.environ['PATH'] = path_str + f"{bin_dir}/install/lib;" + os.environ['PATH']
 
     DEFAULT_BOOST_FLAGS = [
         f"-DBoost_COMPILER:STRING={BOOST_COMPILER_STRING}",
@@ -271,7 +266,7 @@ def hdrpr(blender_libs_dir, bin_dir, compiler, jobs, clean, build_var):
         f"-DBoost_ADDITIONAL_VERSIONS={BOOST_VERSION_SHORT}",
         f"-DBOOST_LIBRARYDIR={blender_libs_dir}/boost/lib/",
         "-DBoost_USE_DEBUG_PYTHON=On"
-        ]
+    ]
 
     _cmake(hdrpr_dir, compiler, jobs, build_var, [
         *DEFAULT_BOOST_FLAGS,
@@ -294,8 +289,123 @@ def hdrpr(blender_libs_dir, bin_dir, compiler, jobs, clean, build_var):
 def zip_addon(bin_dir):
     print_start("Creating zip Addon")
 
-    import create_zip_addon
-    create_zip_addon.main(bin_dir)
+    # region internal functions
+    def enumerate_addon_data(bin_dir):
+        libs_rel_path = Path('libs/lib')
+        plugin_rel_path = Path('libs/plugin/usd/plugin')
+        plugin_path = bin_dir / 'USD/install/plugin'
+
+        # copy addon scripts
+        hydrarpr_plugin_dir = repo_dir / 'src/hydrarpr'
+        for f in hydrarpr_plugin_dir.glob("**/*"):
+            if f.is_dir():
+                continue
+
+            rel_path = f.relative_to(hydrarpr_plugin_dir)
+            rel_path_parts = rel_path.parts
+            if rel_path_parts[0] in ("libs", "configdev.py", "hdusd.log") or \
+                    "__pycache__" in rel_path_parts or ".gitignore" in rel_path_parts:
+                continue
+
+            yield f, rel_path
+
+        hydrarpr_repo_dir = repo_dir / 'RadeonProRenderUSD'
+        # copy legals and readmes
+        for f in hydrarpr_repo_dir.glob("*"):
+            if f.name in ("LICENSE.md", "README.md"):
+                yield f, f.name
+
+        # copy RIF libraries
+        rif_libs_dir = hydrarpr_repo_dir / 'deps/RIF/Windows/Dynamic'
+        for f in rif_libs_dir.glob("**/*"):
+            if f.suffix in (".lib"):
+                continue
+
+            yield f, libs_rel_path / f.name
+
+        # copy core libraries
+        core_libs_dir = hydrarpr_repo_dir / 'deps/RPR/RadeonProRender/binWin64'
+        for f in core_libs_dir.glob("**/*"):
+            if f.suffix in (".exe"):
+                continue
+
+            yield f, libs_rel_path / f.name
+
+        # copy rprUsd library
+        rprusd_lib = hydrarpr_repo_dir / 'build/pxr/imaging/rprUsd/Release/rprUsd.dll'
+        yield rprusd_lib, libs_rel_path / rprusd_lib.name
+
+        # copy hdRpr library
+        hdrpr_lib = hydrarpr_repo_dir / 'build/pxr/imaging/plugin/hdRpr/Release/hdRpr.dll'
+        yield hdrpr_lib, plugin_rel_path.parent / hdrpr_lib.name
+
+        # copy plugInfo.json library
+        pluginfo = plugin_path / 'plugInfo.json'
+        yield pluginfo, plugin_rel_path.parent.parent / pluginfo.name
+
+        # copy plugin/usd folders
+        for f in plugin_path.glob("**/*"):
+            rel_path = f.relative_to(plugin_path.parent)
+            if any(p in rel_path.parts for p in ("hdRpr", "rprUsd", 'rprUsdMetadata')):
+                yield f, libs_rel_path.parent / rel_path
+
+
+    def get_version():
+        return [1, 0, 0, 0]
+        # getting buid version
+        build_ver = subprocess.getoutput("git rev-parse --short HEAD")
+
+        # getting plugin version
+        text = (repo_dir / "src/hdusd/__init__.py").read_text()
+        m = re.search(r'"version": \((\d+), (\d+), (\d+)\)', text)
+        plugin_ver = m.group(1), m.group(2), m.group(3)
+
+        return (*plugin_ver, build_ver)
+
+
+    def create_zip_addon(install_dir, bin_dir, name, ver):
+        """ Pack addon files to zip archive """
+        zip_addon = install_dir / name
+        if zip_addon.is_file():
+            os.remove(zip_addon)
+
+        print(f"Compressing addon files to: {zip_addon}")
+        with zipfile.ZipFile(zip_addon, 'w', compression=zipfile.ZIP_DEFLATED,
+                             compresslevel=zlib.Z_BEST_COMPRESSION) as myzip:
+            for src, package_path in enumerate_addon_data(bin_dir):
+                print(f"adding {src} --> {package_path}")
+
+                arcname = str(Path('hydrarpr') / package_path)
+
+                if str(package_path) == "__init__.py":
+                    print(f"    set version_build={ver[3]}")
+                    text = src.read_text()
+                    text = text.replace('version_build = ""', f'version_build = "{ver[3]}"')
+                    myzip.writestr(arcname, text)
+                    continue
+
+                myzip.write(str(src), arcname=arcname)
+
+        return zip_addon
+    # endregion
+
+    PYTHON_VERSION = f'{sys.version_info.major}.{sys.version_info.minor}'
+
+    repo_dir = Path(__file__).parent
+    install_dir = repo_dir / "install"
+    ver = get_version()
+    name = f"hydrarpr-{ver[0]}.{ver[1]}.{ver[2]}-{ver[3]}-{OS.lower()}-{PYTHON_VERSION}.zip"
+
+    if install_dir.is_dir():
+        for file in os.listdir(install_dir):
+            if file == name:
+                os.remove(install_dir / file)
+                break
+    else:
+        install_dir.mkdir()
+
+    zip_addon = create_zip_addon(install_dir, bin_dir, name, ver)
+    print(f"Addon was compressed to: {zip_addon}")
 
 
 def main():
@@ -327,10 +437,6 @@ def main():
                     help="Build variant for USD, HdRPR and dependencies. (default: release)")
     ap.add_argument("-clean", required=False, action="store_true",
                     help="Clean build dirs before start USD or HdRPR build")
-    ap.add_argument("--prman", required=False, action="store_true",
-                    help="Build with RenderMan render delegate")
-    ap.add_argument("--prman-location", required=False, type=str, default="",
-                    help="Path to RenderMan directory")
 
     args = ap.parse_args()
 
@@ -342,7 +448,7 @@ def main():
         materialx(bin_dir, args.G, args.j, args.clean, args.build_var)
 
     if args.all or args.usd:
-        usd(args.blender_libs_dir, bin_dir, args.G, args.j, args.clean, args.build_var, args.prman, args.prman_location)
+        usd(args.blender_libs_dir, bin_dir, args.G, args.j, args.clean, args.build_var)
 
     if args.all or args.hdrpr:
         hdrpr(args.blender_libs_dir, bin_dir, args.G, args.j, args.clean, args.build_var)
