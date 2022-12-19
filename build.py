@@ -314,10 +314,6 @@ def main():
                     help="Path to root of Blender libs directory"),
     ap.add_argument("-bin-dir", required=False, type=str, default="",
                     help="Path to binary directory")
-    ap.add_argument("-libs", required=False, action="store_true",
-                    help="Create libs dir")
-    ap.add_argument("-mx-classes", required=False, action="store_true",
-                    help="Generate MaterialX classes")
     ap.add_argument("-addon", required=False, action="store_true",
                     help="Create zip addon")
     ap.add_argument("-G", required=False, type=str,
