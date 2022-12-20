@@ -285,6 +285,7 @@ def zip_addon(bin_dir):
     print_start("Creating zip Addon")
 
     # region internal functions
+
     def enumerate_addon_data(bin_dir):
         libs_rel_path = Path('libs/lib')
         plugin_rel_path = Path('libs/plugin/usd/plugin')
@@ -344,19 +345,18 @@ def zip_addon(bin_dir):
             if any(p in rel_path.parts for p in ("hdRpr", "rprUsd", 'rprUsdMetadata')):
                 yield f, libs_rel_path.parent / rel_path
 
-
     def get_version():
-        return [1, 0, 0, 0]
         # getting buid version
         build_ver = subprocess.getoutput("git rev-parse --short HEAD")
 
-        # getting plugin version
-        text = (repo_dir / "src/hdusd/__init__.py").read_text()
-        m = re.search(r'"version": \((\d+), (\d+), (\d+)\)', text)
-        plugin_ver = m.group(1), m.group(2), m.group(3)
+        # # getting plugin version
+        # text = (repo_dir / "src/hdusd/__init__.py").read_text()
+        # m = re.search(r'"version": \((\d+), (\d+), (\d+)\)', text)
+        # plugin_ver = m.group(1), m.group(2), m.group(3)
+        #
+        # return (*plugin_ver, build_ver)
 
-        return (*plugin_ver, build_ver)
-
+        return build_ver
 
     def create_zip_addon(install_dir, bin_dir, name, ver):
         """ Pack addon files to zip archive """
@@ -382,14 +382,13 @@ def zip_addon(bin_dir):
                 myzip.write(str(src), arcname=arcname)
 
         return zip_addon
-    # endregion
 
-    PYTHON_VERSION = f'{sys.version_info.major}.{sys.version_info.minor}'
+    # endregion
 
     repo_dir = Path(__file__).parent
     install_dir = repo_dir / "install"
     ver = get_version()
-    name = f"hydrarpr-{ver[0]}.{ver[1]}.{ver[2]}-{ver[3]}-{OS.lower()}-{PYTHON_VERSION}.zip"
+    name = f"hydrarpr-{ver}-{OS.lower()}.zip"
 
     if install_dir.is_dir():
         for file in os.listdir(install_dir):

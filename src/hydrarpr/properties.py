@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ********************************************************************
-
 import math
 
 import bpy
@@ -30,7 +29,7 @@ class Properties(bpy.types.PropertyGroup):
 
     @classmethod
     def register(cls):
-        cls.bl_type.usdhydra_rpr = bpy.props.PointerProperty(
+        cls.bl_type.hydra_rpr = bpy.props.PointerProperty(
             name="Hydra RPR",
             description="Hydra RPR properties",
             type=cls,
@@ -38,7 +37,7 @@ class Properties(bpy.types.PropertyGroup):
 
     @classmethod
     def unregister(cls):
-        del cls.bl_type.usdhydra_rpr
+        del cls.bl_type.hydra_rpr
 
 
 class QualitySettings(bpy.types.PropertyGroup):
