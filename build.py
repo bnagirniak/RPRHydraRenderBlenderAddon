@@ -242,16 +242,13 @@ def hdrpr(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
     SHAREDLIBEXT = ".lib" if OS == 'Windows' else ""
     PYTHON_EXTENSION = ".exe" if OS == 'Windows' else ""
 
-    dependencies = ['imath/bin', 'openexr/bin', 'openvdb/bin', 'OpenImageIO/bin', 'tbb/bin', 'boost/lib', 'materialx/bin']
-
     path_str = ""
-    for deps in dependencies:
-        deps_path = f"{bl_libs_dir}/{deps}"
-        path_str = path_str + deps_path + ";"
-        os.add_dll_directory(deps_path)
+    for deps in ['imath/bin', 'openexr/bin', 'openvdb/bin', 'OpenImageIO/bin', 'tbb/bin', 'boost/lib', 'MaterialX/bin']:
+        path_str += f"{bl_libs_dir / deps}" + os.pathsep
 
-    os.add_dll_directory(f"{bin_dir}/USD/install/lib")
-    os.environ['PATH'] = path_str + f"{bin_dir}/install/lib;" + os.environ['PATH']
+    path_str += f"{bin_dir / 'USD/install/lib'}" + os.pathsep
+    os.environ['PATH'] = path_str + os.environ['PATH']
+    # print("PATH=", os.environ['PATH'])
 
     DEFAULT_BOOST_FLAGS = [
         f"-DBoost_COMPILER:STRING={BOOST_COMPILER_STRING}",
@@ -438,7 +435,7 @@ def main():
 
     args = ap.parse_args()
 
-    bl_libs_dir = Path(args.bl_libs_dir).absolute()
+    bl_libs_dir = Path(args.bl_libs_dir).absolute().resolve()
 
     bin_dir = Path(args.bin_dir).resolve() if args.bin_dir else (repo_dir / "bin")
     bin_dir = bin_dir.absolute()
