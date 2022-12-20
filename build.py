@@ -174,20 +174,20 @@ def usd(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
                           "-DPXR_ENABLE_OPENVDB_SUPPORT=ON",
                           f"-DPYTHON_EXECUTABLE={sys.executable}",
                           "-DPXR_BUILD_MONOLITHIC=ON",
-                          # "OSL is an optional dependency of the Imaging module. However, since that"
-                          # "module was included for its support for converting primitive shapes (sphere,"
-                          # "cube, etc.) to geometry, it's not necessary. Disabling it will make it"
-                          # "simpler to build Blender; currently only Cycles uses OSL."
+                          # OSL is an optional dependency of the Imaging module. However, since that
+                          # module was included for its support for converting primitive shapes (sphere,
+                          # cube, etc.) to geometry, it's not necessary. Disabling it will make it
+                          # simpler to build Blender; currently only Cycles uses OSL.
                           "-DPXR_ENABLE_OSL_SUPPORT=OFF",
-                          # "Enable OpenGL for Hydra support. Note that this indirectly also adds an X11"
-                          # "dependency on Linux. This would be good to eliminate for headless and Wayland"
-                          # "only builds, however is not worse than what Blender already links to for"
-                          # "official releases currently."
+                          # Enable OpenGL for Hydra support. Note that this indirectly also adds an X11
+                          # dependency on Linux. This would be good to eliminate for headless and Wayland
+                          # only builds, however is not worse than what Blender already links to for
+                          # official releases currently.
                           "-DPXR_ENABLE_GL_SUPPORT=ON",
-                          # "OIIO is used for loading image textures in Hydra Storm / Embree renderers."
+                          # OIIO is used for loading image textures in Hydra Storm / Embree renderers.
                           "-DPXR_BUILD_OPENIMAGEIO_PLUGIN=ON",
-                          # "USD 22.03 does not support OCIO 2.x"
-                          # "Tracking ticket https://github.com/PixarAnimationStudios/USD/issues/1386"
+                          # USD 22.03 does not support OCIO 2.x
+                          # Tracking ticket https://github.com/PixarAnimationStudios/USD/issues/1386
                           "-DPXR_BUILD_OPENCOLORIO_PLUGIN=OFF",
                           "-DPXR_ENABLE_PTEX_SUPPORT=OFF",
                           "-DPXR_BUILD_USD_TOOLS=OFF",
@@ -197,8 +197,8 @@ def usd(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
                           f"-DTBB_LIBRARIES={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
                           f"-DTbb_TBB_LIBRARY={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
                           f"-DTBB_tbb_LIBRARY_RELEASE={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
-                          #" USD wants the tbb debug lib set even when you are doing a release build"
-                          #" Otherwise it will error out during the cmake configure phase."
+                          # USD wants the tbb debug lib set even when you are doing a release build
+                          # Otherwise it will error out during the cmake configure phase.
                           f"-DTBB_LIBRARIES_DEBUG={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
                           f"-DBoost_INCLUDE_DIR={bl_libs_dir}/boost/include",
                           f"-DMaterialX_DIR={bin_dir}/USD/install/lib/cmake/MaterialX",
