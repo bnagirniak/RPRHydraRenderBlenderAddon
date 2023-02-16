@@ -356,6 +356,7 @@ def get_panels():
         'EEVEE_MATERIAL_PT_surface',
         'EEVEE_MATERIAL_PT_volume',
         'EEVEE_MATERIAL_PT_settings',
+        'EEVEE_WORLD_PT_surface',
     }
 
     for panel_cls in bpy.types.Panel.__subclasses__():
