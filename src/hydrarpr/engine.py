@@ -26,7 +26,7 @@ class RPRHydraRenderEngine(hydra.HydraRenderEngine):
     bl_label = "Hydra: RPR"
     bl_info = "Hydra Radeon ProRender delegate"
 
-    bl_use_preview = False
+    bl_use_preview = True
 
     delegate_id = "HdRprPlugin"
 
