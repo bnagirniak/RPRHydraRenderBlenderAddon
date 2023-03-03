@@ -248,37 +248,45 @@ def hdrpr(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
 
     path_str += f"{bin_dir / 'USD/install/lib'}" + os.pathsep
     os.environ['PATH'] = path_str + os.environ['PATH']
-    # print("PATH=", os.environ['PATH'])
 
-    DEFAULT_BOOST_FLAGS = [
-        f"-DBoost_COMPILER:STRING={BOOST_COMPILER_STRING}",
-        "-DBoost_USE_MULTITHREADED=ON",
-        "-DBoost_USE_STATIC_LIBS=OFF",
-        "-DBoost_USE_STATIC_RUNTIME=OFF",
-        f"-DBOOST_ROOT={bl_libs_dir}/boost",
-        "-DBoost_NO_SYSTEM_PATHS=ON",
-        "-DBoost_NO_BOOST_CMAKE=ON",
-        f"-DBoost_ADDITIONAL_VERSIONS={BOOST_VERSION_SHORT}",
-        f"-DBOOST_LIBRARYDIR={bl_libs_dir}/boost/lib/",
-        "-DBoost_USE_DEBUG_PYTHON=On"
-    ]
+    cur_dir = os.getcwd()
+    try:
+        ch_dir(hdrpr_dir)
+        check_call('git', 'apply', '--whitespace=nowarn', str(repo_dir / "hdRpr.diff"))
 
-    _cmake(hdrpr_dir, compiler, jobs, build_var, [
-        *DEFAULT_BOOST_FLAGS,
-        f'-Dpxr_DIR={usd_dir}',
-        f'-DCMAKE_INSTALL_PREFIX={bin_dir}/USD/install',
-        '-DRPR_BUILD_AS_HOUDINI_PLUGIN=FALSE',
-        f'-DPYTHON_EXECUTABLE={sys.executable}',
-        f"-DIMATH_INCLUDE_DIR={bl_libs_dir}/imath/include/imath",
-        f"-DOPENEXR_INCLUDE_DIR={bl_libs_dir}/openexr/include/OpenEXR",
-        f"-DBoost_INCLUDE_DIR={bl_libs_dir}/boost/include",
-        f"-DImath_DIR={bl_libs_dir}/imath",
-        '-DPXR_BUILD_MONOLITHIC=ON',
-        f'-DUSD_LIBRARY_DIR={usd_dir}/lib',
-        f'-DUSD_MONOLITHIC_LIBRARY={usd_dir / "lib" / ("usd_ms_d.lib" if build_var == "debug" else "usd_ms.lib")}',
-        f"-DTBB_LIBRARY={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
-        f"-DTBB_INCLUDE_DIR={bl_libs_dir}/tbb/include",
-    ])
+        DEFAULT_BOOST_FLAGS = [
+            f"-DBoost_COMPILER:STRING={BOOST_COMPILER_STRING}",
+            "-DBoost_USE_MULTITHREADED=ON",
+            "-DBoost_USE_STATIC_LIBS=OFF",
+            "-DBoost_USE_STATIC_RUNTIME=OFF",
+            f"-DBOOST_ROOT={bl_libs_dir}/boost",
+            "-DBoost_NO_SYSTEM_PATHS=ON",
+            "-DBoost_NO_BOOST_CMAKE=ON",
+            f"-DBoost_ADDITIONAL_VERSIONS={BOOST_VERSION_SHORT}",
+            f"-DBOOST_LIBRARYDIR={bl_libs_dir}/boost/lib/",
+            "-DBoost_USE_DEBUG_PYTHON=On"
+        ]
+
+        _cmake(hdrpr_dir, compiler, jobs, build_var, [
+            *DEFAULT_BOOST_FLAGS,
+            f'-Dpxr_DIR={usd_dir}',
+            f'-DCMAKE_INSTALL_PREFIX={bin_dir}/USD/install',
+            '-DRPR_BUILD_AS_HOUDINI_PLUGIN=FALSE',
+            f'-DPYTHON_EXECUTABLE={sys.executable}',
+            f"-DIMATH_INCLUDE_DIR={bl_libs_dir}/imath/include/imath",
+            f"-DOPENEXR_INCLUDE_DIR={bl_libs_dir}/openexr/include/OpenEXR",
+            f"-DBoost_INCLUDE_DIR={bl_libs_dir}/boost/include",
+            f"-DImath_DIR={bl_libs_dir}/imath",
+            '-DPXR_BUILD_MONOLITHIC=ON',
+            f'-DUSD_LIBRARY_DIR={usd_dir}/lib',
+            f'-DUSD_MONOLITHIC_LIBRARY={usd_dir / "lib" / ("usd_ms_d.lib" if build_var == "debug" else "usd_ms.lib")}',
+            f"-DTBB_LIBRARY={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
+            f"-DTBB_INCLUDE_DIR={bl_libs_dir}/tbb/include",
+        ])
+
+    finally:
+        check_call('git', 'checkout', '--', '*')
+        ch_dir(cur_dir)
 
 
 def zip_addon(bin_dir):
