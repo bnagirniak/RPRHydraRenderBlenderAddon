@@ -251,7 +251,8 @@ def hdrpr(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
 
     cur_dir = os.getcwd()
     try:
-        check_call('git', 'apply', '--whitespace=nowarn', str(repo_dir / "hdRpr.diff"), '--directory=RadeonProRenderUSD/')
+        ch_dir(hdrpr_dir)
+        check_call('git', 'apply', '--whitespace=nowarn', str(repo_dir / "hdRpr.diff"))
 
         DEFAULT_BOOST_FLAGS = [
             f"-DBoost_COMPILER:STRING={BOOST_COMPILER_STRING}",
@@ -284,7 +285,6 @@ def hdrpr(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
         ])
 
     finally:
-        ch_dir(hdrpr_dir)
         check_call('git', 'checkout', '--', '*')
         ch_dir(cur_dir)
 
