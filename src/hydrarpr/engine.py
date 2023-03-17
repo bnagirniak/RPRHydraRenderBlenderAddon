@@ -15,13 +15,13 @@
 from pathlib import Path
 
 import bpy
-import hydra
+import bpy_hydra
 
 
 LIBS_DIR = Path(__file__).parent / "libs"
 
 
-class RPRHydraRenderEngine(hydra.HydraRenderEngine):
+class RPRHydraRenderEngine(bpy_hydra.HydraRenderEngine):
     bl_idname = 'RPRHydraRenderEngine'
     bl_label = "Hydra: RPR"
     bl_info = "Hydra Radeon ProRender delegate"
@@ -34,7 +34,7 @@ class RPRHydraRenderEngine(hydra.HydraRenderEngine):
     def register(cls):
         super().register()
 
-        hydra.register_plugins([str(LIBS_DIR / "plugin")], [str(LIBS_DIR / "lib")])
+        bpy_hydra.register_plugins([str(LIBS_DIR / "plugin")], [str(LIBS_DIR / "lib")])
 
     def get_delegate_settings(self, engine_type):
         if engine_type == 'VIEWPORT':
