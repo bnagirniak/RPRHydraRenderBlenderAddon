@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ********************************************************************
+import os
 from pathlib import Path
 
 import bpy
@@ -33,8 +34,10 @@ class RPRHydraRenderEngine(bpy_hydra.HydraRenderEngine):
     @classmethod
     def register(cls):
         super().register()
-
-        bpy_hydra.register_plugins([str(LIBS_DIR / "plugin")], [str(LIBS_DIR / "lib")])
+        os.environ['PATH'] = os.environ['PATH'] + ';' + str(LIBS_DIR / "lib")
+        os.environ['PXR_MTLX_STDLIB_SEARCH_PATHS'] = os.environ.get('PXR_MTLX_STDLIB_SEARCH_PATHS', '') + ';' + \
+                                                     str(Path(bpy.app.binary_path).parent) + '/materialx/libraries;'
+        bpy_hydra.register_plugins([str(LIBS_DIR / "plugin")])
 
     def get_delegate_settings(self, engine_type):
         if engine_type == 'VIEWPORT':
