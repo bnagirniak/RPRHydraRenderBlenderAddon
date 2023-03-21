@@ -13,6 +13,7 @@
 # limitations under the License.
 # ********************************************************************
 import os
+import platform
 from pathlib import Path
 
 import bpy
@@ -34,8 +35,9 @@ class RPRHydraRenderEngine(bpy_hydra.HydraRenderEngine):
     @classmethod
     def register(cls):
         super().register()
-        os.environ['PATH'] = os.environ['PATH'] + ';' + str(LIBS_DIR / "lib")
-        os.environ['PXR_MTLX_STDLIB_SEARCH_PATHS'] = os.environ.get('PXR_MTLX_STDLIB_SEARCH_PATHS', '') + ';' + \
+        separator = ';' if platform.system() == 'Windows' else ':'
+        os.environ['PATH'] = os.environ['PATH'] + separator + str(LIBS_DIR / "lib")
+        os.environ['PXR_MTLX_STDLIB_SEARCH_PATHS'] = os.environ.get('PXR_MTLX_STDLIB_SEARCH_PATHS', '') + separator + \
                                                      str(Path(bpy.app.binary_path).parent) + '/materialx/libraries;'
         bpy_hydra.register_plugins([str(LIBS_DIR / "plugin")])
 
