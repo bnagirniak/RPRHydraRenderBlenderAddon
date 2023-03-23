@@ -13,7 +13,6 @@
 # limitations under the License.
 # ********************************************************************
 import os
-import platform
 from pathlib import Path
 
 import bpy
