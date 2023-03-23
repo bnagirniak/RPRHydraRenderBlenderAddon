@@ -37,8 +37,6 @@ class RPRHydraRenderEngine(bpy_hydra.HydraRenderEngine):
         super().register()
         separator = ';' if platform.system() == 'Windows' else ':'
         os.environ['PATH'] = os.environ['PATH'] + separator + str(LIBS_DIR / "lib")
-        os.environ['PXR_MTLX_STDLIB_SEARCH_PATHS'] = os.environ.get('PXR_MTLX_STDLIB_SEARCH_PATHS', '') + separator + \
-                                                     str(Path(bpy.app.binary_path).parent) + '/materialx/libraries;'
         bpy_hydra.register_plugins([str(LIBS_DIR / "plugin")])
 
     def get_delegate_settings(self, engine_type):
