@@ -35,8 +35,7 @@ class RPRHydraRenderEngine(bpy_hydra.HydraRenderEngine):
     @classmethod
     def register(cls):
         super().register()
-        separator = ';' if platform.system() == 'Windows' else ':'
-        os.environ['PATH'] = os.environ['PATH'] + separator + str(LIBS_DIR / "lib")
+        os.environ['PATH'] = os.environ['PATH'] + os.pathsep + str(LIBS_DIR / "lib")
         bpy_hydra.register_plugins([str(LIBS_DIR / "plugin")])
 
     def get_delegate_settings(self, engine_type):
