@@ -72,7 +72,7 @@ def _cmake(d, compiler, jobs, build_var, args):
 
     if build_var == 'relwithdebuginfo' and OS == 'Windows':
         # disabling optimization for debug purposes
-        build_args.append(f'USD,-DCMAKE_CXX_FLAGS_RELWITHDEBINFO="/Od"')
+        build_args.append(f'-DCMAKE_CXX_FLAGS_RELWITHDEBINFO=/Od')
 
     build_name = {'release': 'Release',
                   'debug': 'Debug',
@@ -352,6 +352,12 @@ def zip_addon(bin_dir):
             rel_path = f.relative_to(plugin_path.parent)
             if any(p in rel_path.parts for p in ("hdRpr", "rprUsd", 'rprUsdMetadata')):
                 yield f, libs_rel_path.parent / rel_path
+
+        # copy python rpr
+        pyrpr_dir = bin_dir / 'USD/install/lib/python/rpr'
+        (pyrpr_dir / "RprUsd/__init__.py").write_text("")
+        for f in (pyrpr_dir / "__init__.py", pyrpr_dir / "RprUsd/__init__.py"):
+            yield f, Path("libs") / f.relative_to(pyrpr_dir.parent.parent)
 
     def get_version():
         # getting buid version

@@ -14,6 +14,7 @@
 # ********************************************************************
 import os
 from pathlib import Path
+import sys
 
 import bpy
 import bpy_hydra
@@ -35,6 +36,7 @@ class RPRHydraRenderEngine(bpy_hydra.HydraRenderEngine):
     def register(cls):
         super().register()
         os.environ['PATH'] = os.environ['PATH'] + os.pathsep + str(LIBS_DIR / "lib")
+        sys.path.append(str(LIBS_DIR / "python"))
         bpy_hydra.register_plugins([str(LIBS_DIR / "plugin")])
 
     def get_delegate_settings(self, engine_type):
