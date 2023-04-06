@@ -284,10 +284,6 @@ def hdrpr(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
             f"-DTBB_INCLUDE_DIR={bl_libs_dir}/tbb/include",
         ])
 
-        rprusd_py = usd_dir / "lib/python/rpr/RprUsd/__init__.py"
-        print(f"Clear: {rprusd_py}")
-        rprusd_py.write_text("")
-
     finally:
         check_call('git', 'checkout', '--', '*')
         ch_dir(cur_dir)
@@ -359,7 +355,8 @@ def zip_addon(bin_dir):
 
         # copy python rpr
         pyrpr_dir = bin_dir / 'USD/install/lib/python/rpr'
-        for f in pyrpr_dir.glob("**/*"):
+        (pyrpr_dir / "RprUsd/__init__.py").write_text("")
+        for f in (pyrpr_dir / "__init__.py", pyrpr_dir / "RprUsd/__init__.py"):
             yield f, Path("libs") / f.relative_to(pyrpr_dir.parent.parent)
 
     def get_version():
