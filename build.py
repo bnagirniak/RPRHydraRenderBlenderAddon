@@ -314,11 +314,6 @@ def zip_addon(bin_dir):
             yield f, rel_path
 
         hydrarpr_repo_dir = repo_dir / 'RadeonProRenderUSD'
-        # copy legals and readmes
-        for f in hydrarpr_repo_dir.glob("*"):
-            if f.name in ("LICENSE.md", "README.md"):
-                yield f, f.name
-
         # copy RIF libraries
         rif_libs_dir = hydrarpr_repo_dir / 'deps/RIF/Windows/Dynamic'
         for f in rif_libs_dir.glob("**/*"):
@@ -334,6 +329,14 @@ def zip_addon(bin_dir):
                 continue
 
             yield f, libs_rel_path / f.name
+
+        # copy hipbin folder
+        hipbin_dir = hydrarpr_repo_dir / 'deps/RPR/hipbin'
+        for f in hipbin_dir.glob("**/*"):
+            if f.name in ('.git', '.gitattributes'):
+                continue
+
+            yield f, f'libs/plugin/usd/rprUsd/resources/ns_kernels/{f.name}'
 
         # copy rprUsd library
         rprusd_lib = hydrarpr_repo_dir / 'build/pxr/imaging/rprUsd/Release/rprUsd.dll'
