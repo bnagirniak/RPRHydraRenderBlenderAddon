@@ -330,14 +330,6 @@ def zip_addon(bin_dir):
 
             yield f, libs_rel_path / f.name
 
-        # copy hipbin folder
-        hipbin_dir = hydrarpr_repo_dir / 'deps/RPR/hipbin'
-        for f in hipbin_dir.glob("**/*"):
-            if f.name in ('.git', '.gitattributes'):
-                continue
-
-            yield f, f'libs/plugin/usd/rprUsd/resources/ns_kernels/{f.name}'
-
         # copy rprUsd library
         rprusd_lib = hydrarpr_repo_dir / 'build/pxr/imaging/rprUsd/Release/rprUsd.dll'
         yield rprusd_lib, libs_rel_path / rprusd_lib.name
