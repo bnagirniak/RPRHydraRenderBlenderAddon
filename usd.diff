@@ -1,9 +1,9 @@
 diff --git a/cmake/defaults/Packages.cmake b/cmake/defaults/Packages.cmake
-index 825c5af1f..73387b57a 100644
+index 84bd48bec..d7da512bf 100644
 --- a/cmake/defaults/Packages.cmake
 +++ b/cmake/defaults/Packages.cmake
-@@ -129,7 +129,7 @@ if(PXR_BUILD_USD_TOOLS OR PXR_BUILD_TESTS)
- endif()
+@@ -137,7 +137,7 @@ endif()
+ 
  
  # --TBB
 -find_package(TBB REQUIRED COMPONENTS tbb)
@@ -12,10 +12,10 @@ index 825c5af1f..73387b57a 100644
  
  # --math
 diff --git a/cmake/defaults/msvcdefaults.cmake b/cmake/defaults/msvcdefaults.cmake
-index fd41f7aae..6fb2e9cb4 100644
+index 1c4cb369d..f5d2064dd 100644
 --- a/cmake/defaults/msvcdefaults.cmake
 +++ b/cmake/defaults/msvcdefaults.cmake
-@@ -120,9 +120,6 @@ _add_define("WIN32_LEAN_AND_MEAN")
+@@ -124,9 +124,6 @@ _add_define("WIN32_LEAN_AND_MEAN")
  # for all translation units.
  set(_PXR_CXX_FLAGS "${_PXR_CXX_FLAGS} /bigobj")
  
@@ -26,10 +26,10 @@ index fd41f7aae..6fb2e9cb4 100644
  set(_PXR_CXX_FLAGS "${_PXR_CXX_FLAGS} /MP")
  set(_PXR_CXX_FLAGS "${_PXR_CXX_FLAGS} /Gm-")
 diff --git a/cmake/macros/Private.cmake b/cmake/macros/Private.cmake
-index 7ac3b3c06..4cd6174d0 100644
+index 585db955e..65fc70bee 100644
 --- a/cmake/macros/Private.cmake
 +++ b/cmake/macros/Private.cmake
-@@ -919,11 +919,13 @@ function(_pxr_python_module NAME)
+@@ -919,12 +919,14 @@ function(_pxr_python_module NAME)
          return()
      endif()
  
@@ -39,14 +39,16 @@ index 7ac3b3c06..4cd6174d0 100644
 -        set(LIBRARY_NAME "_${NAME}_d")
 -    else()
 -        set(LIBRARY_NAME "_${NAME}")
+-    endif()
 +        # Blender: but this can be skipped if CMAKE_DEBUG_POSTFIX is set, it knows
 +        # what it is doing and we don't want libraries ending in _d_d.pyd
 +         set(LIBRARY_NAME "_${NAME}_d")
 +     else()
 +         set(LIBRARY_NAME "_${NAME}")
-     endif()
++     endif()
  
      # Install .py files.
+     if(args_PYTHON_FILES)
 diff --git a/pxr/base/arch/timing.h b/pxr/base/arch/timing.h
 index d78598a84..289ec08d2 100644
 --- a/pxr/base/arch/timing.h
@@ -97,7 +99,7 @@ index d78598a84..289ec08d2 100644
  /// A simple timer class for measuring an interval of time using the
  /// ArchTickTimer facilities.
 diff --git a/pxr/imaging/hdSt/materialXShaderGen.cpp b/pxr/imaging/hdSt/materialXShaderGen.cpp
-index be80426a5..57c1f9f2f 100644
+index be80426a5..a9d60476b 100644
 --- a/pxr/imaging/hdSt/materialXShaderGen.cpp
 +++ b/pxr/imaging/hdSt/materialXShaderGen.cpp
 @@ -137,8 +137,7 @@ HdStMaterialXShaderGen::HdStMaterialXShaderGen(
@@ -158,13 +160,14 @@ index be80426a5..57c1f9f2f 100644
              _tokenSubstitutions[ShaderGenerator::T_FILE_TRANSFORM_UV],
              mxContext, mxStage);
      }
-@@ -492,10 +498,30 @@ HdStMaterialXShaderGen::_EmitMxSurfaceShader(
+@@ -492,10 +498,31 @@ HdStMaterialXShaderGen::_EmitMxSurfaceShader(
              // closure/shader nodes and need to be emitted first.
              emitFunctionCalls(mxGraph, mxContext, mxStage, mx::ShaderNode::Classification::TEXTURE);
  
 +#if MATERIALX_MAJOR_VERSION == 1 &&  \
 +    MATERIALX_MINOR_VERSION == 38 && \
 +    MATERIALX_BUILD_VERSION <= 4
++
              // Emit function calls for all surface shader nodes.
              // These will internally emit their closure function calls.
              emitFunctionCalls(mxGraph, mxContext, mxStage, mx::ShaderNode::Classification::SHADER | 
