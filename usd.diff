@@ -1,8 +1,8 @@
 diff --git a/cmake/defaults/Packages.cmake b/cmake/defaults/Packages.cmake
-index 84bd48bec..d7da512bf 100644
+index 2bb1f30d0..adcc7422e 100644
 --- a/cmake/defaults/Packages.cmake
 +++ b/cmake/defaults/Packages.cmake
-@@ -137,7 +137,7 @@ endif()
+@@ -152,7 +152,7 @@ endif()
  
  
  # --TBB
@@ -26,7 +26,7 @@ index 1c4cb369d..f5d2064dd 100644
  set(_PXR_CXX_FLAGS "${_PXR_CXX_FLAGS} /MP")
  set(_PXR_CXX_FLAGS "${_PXR_CXX_FLAGS} /Gm-")
 diff --git a/cmake/macros/Private.cmake b/cmake/macros/Private.cmake
-index 585db955e..65fc70bee 100644
+index 23172745e..8c595b1a1 100644
 --- a/cmake/macros/Private.cmake
 +++ b/cmake/macros/Private.cmake
 @@ -919,12 +919,14 @@ function(_pxr_python_module NAME)
