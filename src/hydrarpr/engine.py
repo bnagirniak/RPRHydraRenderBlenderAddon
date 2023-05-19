@@ -39,7 +39,12 @@ class RPRHydraRenderEngine(bpy_hydra.HydraRenderEngine):
         sys.path.append(str(LIBS_DIR / "python"))
         bpy_hydra.register_plugins([str(LIBS_DIR / "plugin")])
 
-    def get_delegate_settings(self, engine_type):
+    def get_sync_settings(self, engine_type):
+        return {
+            'MaterialXFilenameKey': "MaterialXFilename",
+        }
+
+    def get_render_settings(self, engine_type):
         if engine_type == 'VIEWPORT':
             settings = bpy.context.scene.hydra_rpr.viewport
             quality = settings.interactive_quality
