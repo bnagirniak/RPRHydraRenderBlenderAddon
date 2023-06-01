@@ -122,7 +122,7 @@ def usd(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
         check_call('git', 'apply', '--whitespace=nowarn', str(repo_dir / "usd.diff"))
 
         PYTHON_SHORT_VERSION_NO_DOTS = 310
-        BOOST_VERSION_SHORT = 180
+        BOOST_VERSION_SHORT = 1.80
         BOOST_COMPILER_STRING = "-vc142"
 
         PYTHON_POSTFIX = "_d" if build_var == 'debug' else ""
@@ -138,8 +138,8 @@ def usd(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
             "-D_PXR_CXX_DEFINITIONS=/DBOOST_ALL_NO_LIB",
             f"-DCMAKE_SHARED_LINKER_FLAGS_INIT=/LIBPATH:{bl_libs_dir}/tbb/lib",
             "-DPython_FIND_REGISTRY=NEVER",
-            f"-DPYTHON_INCLUDE_DIRS={bl_libs_dir}/python/{PYTHON_SHORT_VERSION_NO_DOTS}/include",
-            f"-DPYTHON_LIBRARY={bl_libs_dir}/python/{PYTHON_SHORT_VERSION_NO_DOTS}/libs/python{PYTHON_SHORT_VERSION_NO_DOTS}{PYTHON_POSTFIX}{LIBEXT}"
+            f"-DPYTHON_INCLUDE_DIR={bl_libs_dir}/python/{PYTHON_SHORT_VERSION_NO_DOTS}/include",
+            f"-DPYTHON_LIBRARY={bl_libs_dir}/python/{PYTHON_SHORT_VERSION_NO_DOTS}/libs/python{PYTHON_SHORT_VERSION_NO_DOTS}{PYTHON_POSTFIX}{LIBEXT}",
         ]
 
         DEFAULT_BOOST_FLAGS = [
@@ -175,6 +175,7 @@ def usd(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
             "-DPXR_ENABLE_MATERIALX_SUPPORT=ON",
             "-DPXR_ENABLE_OPENVDB_SUPPORT=ON",
             f"-DPYTHON_EXECUTABLE={sys.executable}",
+            f"-DPython3_EXECUTABLE={sys.executable}",
             "-DPXR_BUILD_MONOLITHIC=ON",
             # OSL is an optional dependency of the Imaging module. However, since that
             # module was included for its support for converting primitive shapes (sphere,
@@ -201,9 +202,15 @@ def usd(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
             f"-DTBB_tbb_LIBRARY_RELEASE={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
             # USD wants the tbb debug lib set even when you are doing a release build
             # Otherwise it will error out during the cmake configure phase.
-            f"-DTBB_LIBRARIES_DEBUG={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
-            f"-DBoost_INCLUDE_DIR={bl_libs_dir}/boost/include",
+            # f"-DTBB_LIBRARIES_DEBUG={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
             f"-DMaterialX_DIR={bin_dir}/USD/install/lib/cmake/MaterialX",
+            # "-DTBB_USE_THREADING_TOOLS=0",
+            # "-DTBB_USE_DEBUG=0",
+            # "-DTBB_USE_DEBUG_BUILD=0",
+            # "-DTBB_PREVIEW_FLOW_GRAPH_TRACE=0",
+            # "-D__TBB_CPF_BUILD=0",
+            # "-DTBB_DEFINITIONS=-DTBB_USE_THREADING_TOOLS=0 -DTBB_USE_DEBUG_BUILD=0 -DTBB_USE_DEBUG=0",
+            # "-DTBB_DEFINITIONS_DEBUG=-DTBB_USE_THREADING_TOOLS=0 -DTBB_USE_DEBUG_BUILD=0 -DTBB_USE_DEBUG=0",
         ]
 
 
@@ -438,7 +445,7 @@ def main():
     ap.add_argument("-j", required=False, type=int, default=0,
                     help="Number of jobs run in parallel")
     ap.add_argument("-build-var", required=False, type=str, default="release",
-                    choices=('release', 'relwithdebuginfo'),  # TODO: add 'debug' build variant
+                    choices=('release', 'relwithdebuginfo', 'debug'),  # TODO: add 'debug' build variant
                     help="Build variant for USD, HdRPR and dependencies. (default: release)")
     ap.add_argument("-clean", required=False, action="store_true",
                     help="Clean build dirs before start USD or HdRPR build")
