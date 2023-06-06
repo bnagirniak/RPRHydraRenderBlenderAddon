@@ -62,11 +62,15 @@ def print_start(msg):
 -------------------------------------------------------------""")
 
 
-def _cmake(d, compiler, jobs, build_var, args):
+def _cmake(src_dir, bin_dir, compiler, jobs, build_var, args):
     cur_dir = os.getcwd()
-    ch_dir(d)
+    ch_dir(src_dir)
 
-    build_args = ['-B', 'build', *args]
+    build_dir = bin_dir / "build"
+
+    build_args = ['-B', str(build_dir),
+                  f'-DCMAKE_INSTALL_PREFIX={bin_dir / "install"}',
+                  *args]
     if compiler:
         build_args += ['-G', compiler]
 
@@ -79,7 +83,7 @@ def _cmake(d, compiler, jobs, build_var, args):
                   'relwithdebuginfo': 'RelWithDebInfo'}[build_var]
 
     compile_args = [
-        '--build', 'build',
+        '--build', str(build_dir),
         '--config', build_name,
         '--target', 'install'
     ]
@@ -102,6 +106,7 @@ def materialx(bin_dir, compiler, jobs, clean, build_var):
 
     _cmake(materialx_dir, compiler, jobs, build_var, [
         '-DMATERIALX_BUILD_SHARED_LIBS=ON',
+        # '-DMATERIALX_BUILD_RENDER=OFF',
         f'-DCMAKE_INSTALL_PREFIX={bin_dir / "USD/install"}',
     ])
 
@@ -119,7 +124,7 @@ def usd(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
     os.chdir(str(usd_dir))
 
     try:
-        check_call('git', 'apply', '--whitespace=nowarn', str(repo_dir / "usd.diff"))
+        # check_call('git', 'apply', '--whitespace=nowarn', str(repo_dir / "usd.diff"))
 
         PYTHON_SHORT_VERSION_NO_DOTS = 310
         BOOST_VERSION_SHORT = 1.80
@@ -156,8 +161,6 @@ def usd(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
         ]
 
         USD_EXTRA_ARGS = [
-            *DEFAULT_BOOST_FLAGS,
-            *USD_PLATFORM_FLAGS,
             f"-DOPENSUBDIV_ROOT_DIR={bl_libs_dir}/opensubdiv",
             f"-DOpenImageIO_ROOT={bl_libs_dir}/openimageio",
             f"-DOPENEXR_LIBRARIES={bl_libs_dir}/imath/lib/{LIBPREFIX}Imath{OPENEXR_VERSION_POSTFIX}{SHAREDLIBEXT}",
@@ -215,15 +218,16 @@ def usd(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
 
 
         try:
-            _cmake(usd_dir, compiler, jobs, build_var, [
+            _cmake(usd_dir, bin_dir / "USD", compiler, jobs, build_var, [
+                *DEFAULT_BOOST_FLAGS,
+                *USD_PLATFORM_FLAGS,
                 *USD_EXTRA_ARGS,
-                f'-DCMAKE_INSTALL_PREFIX={bin_dir / "USD/install"}',
             ])
 
         finally:
             print("Reverting USD repo")
-            check_call('git', 'checkout', '--', '*')
-            check_call('git', 'clean', '-f')
+            # check_call('git', 'checkout', '--', '*')
+            # check_call('git', 'clean', '-f')
 
     finally:
         os.chdir(cur_dir)

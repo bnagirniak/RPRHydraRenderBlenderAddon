@@ -1,5 +1,4 @@
 /install
-/bin
-/src/hydrarpr/libs
+/bin*
 
 .idea
