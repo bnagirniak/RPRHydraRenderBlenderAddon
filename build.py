@@ -63,16 +63,14 @@ def print_start(msg):
 
 
 def _cmake(src_dir, bin_dir, compiler, jobs, build_var, clean, args):
-    cur_dir = os.getcwd()
-    ch_dir(src_dir)
-
-    build_dir = src_dir / "build"
     if clean:
-        rm_dir(build_dir)
-    # build_dir = Path('build')
+        rm_dir(bin_dir)
 
-    build_args = ['-B', build_dir.as_posix(),
-                  f'-DCMAKE_INSTALL_PREFIX={(bin_dir / "install").as_posix()}',
+    build_dir = bin_dir / "build"
+
+    build_args = ['-B', str(build_dir),
+                  '-S', str(src_dir),
+                  '--install-prefix', (bin_dir / "install").as_posix(),
                   *args]
     if compiler:
         build_args += ['-G', compiler]
@@ -93,12 +91,8 @@ def _cmake(src_dir, bin_dir, compiler, jobs, build_var, clean, args):
     if jobs > 0:
         compile_args += ['--', '-j', str(jobs)]
 
-    try:
-        check_call('cmake', *build_args)
-        check_call('cmake', *compile_args)
-
-    finally:
-        ch_dir(cur_dir)
+    check_call('cmake', *build_args)
+    check_call('cmake', *compile_args)
 
 
 def materialx(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
@@ -213,7 +207,7 @@ def usd(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
             # USD wants the tbb debug lib set even when you are doing a release build
             # Otherwise it will error out during the cmake configure phase.
             # f"-DTBB_LIBRARIES_DEBUG={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
-            f"-DMaterialX_DIR={bin_dir}/USD/install/lib/cmake/MaterialX",
+            f"-DMaterialX_DIR={bin_dir}/materialx/install/lib/cmake/MaterialX",
             # "-DTBB_USE_THREADING_TOOLS=0",
             # "-DTBB_USE_DEBUG=0",
             # "-DTBB_USE_DEBUG_BUILD=0",
@@ -225,14 +219,15 @@ def usd(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
 
 
         try:
-            _cmake(usd_dir, bin_dir / "USD", compiler, jobs, build_var, [
+            _cmake(usd_dir, bin_dir / "USD", compiler, jobs, build_var, clean, [
                 *DEFAULT_BOOST_FLAGS,
                 *USD_PLATFORM_FLAGS,
                 *USD_EXTRA_ARGS,
             ])
 
         finally:
-            print("Reverting USD repo")
+            pass
+            # print("Reverting USD repo")
             # check_call('git', 'checkout', '--', '*')
             # check_call('git', 'clean', '-f')
 
