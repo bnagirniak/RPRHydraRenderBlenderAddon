@@ -62,14 +62,17 @@ def print_start(msg):
 -------------------------------------------------------------""")
 
 
-def _cmake(src_dir, bin_dir, compiler, jobs, build_var, args):
+def _cmake(src_dir, bin_dir, compiler, jobs, build_var, clean, args):
     cur_dir = os.getcwd()
     ch_dir(src_dir)
 
-    build_dir = bin_dir / "build"
+    build_dir = src_dir / "build"
+    if clean:
+        rm_dir(build_dir)
+    # build_dir = Path('build')
 
-    build_args = ['-B', str(build_dir),
-                  f'-DCMAKE_INSTALL_PREFIX={bin_dir / "install"}',
+    build_args = ['-B', build_dir.as_posix(),
+                  f'-DCMAKE_INSTALL_PREFIX={(bin_dir / "install").as_posix()}',
                   *args]
     if compiler:
         build_args += ['-G', compiler]
@@ -98,16 +101,20 @@ def _cmake(src_dir, bin_dir, compiler, jobs, build_var, args):
         ch_dir(cur_dir)
 
 
-def materialx(bin_dir, compiler, jobs, clean, build_var):
-    materialx_dir = repo_dir / "MaterialX"
+def materialx(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
+    py_exe = bl_libs_dir / "python/310/bin/python.exe"
 
-    if clean:
-        rm_dir(materialx_dir / "build")
-
-    _cmake(materialx_dir, compiler, jobs, build_var, [
+    _cmake(repo_dir / "MaterialX", bin_dir / "materialx", compiler, jobs, build_var, clean, [
+        '-DMATERIALX_BUILD_PYTHON=ON',
+        '-DMATERIALX_BUILD_RENDER=ON',
+        '-DMATERIALX_INSTALL_PYTHON=OFF',
+        f'-DMATERIALX_PYTHON_EXECUTABLE={py_exe.as_posix()}',
+        f'-DMATERIALX_PYTHON_VERSION=3.10',
         '-DMATERIALX_BUILD_SHARED_LIBS=ON',
-        # '-DMATERIALX_BUILD_RENDER=OFF',
-        f'-DCMAKE_INSTALL_PREFIX={bin_dir / "USD/install"}',
+        '-DMATERIALX_BUILD_TESTS=OFF',
+        '-DCMAKE_DEBUG_POSTFIX=_d',
+        f'-Dpybind11_ROOT=',
+        f'-DPython_EXECUTABLE={py_exe.as_posix()}',
     ])
 
 
@@ -463,7 +470,7 @@ def main():
     bin_dir.mkdir(parents=True, exist_ok=True)
 
     if args.all or args.materialx:
-        materialx(bin_dir, args.G, args.j, args.clean, args.build_var)
+        materialx(bl_libs_dir, bin_dir, args.G, args.j, args.clean, args.build_var)
 
     if args.all or args.usd:
         usd(bl_libs_dir, bin_dir, args.G, args.j, args.clean, args.build_var)
