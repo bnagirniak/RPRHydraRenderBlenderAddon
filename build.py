@@ -116,47 +116,55 @@ def usd(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
     print_start("Building USD")
 
     usd_dir = repo_dir / "USD"
-    py_exe = bl_libs_dir / "python/310/bin/python.exe"
 
-    PYTHON_POSTFIX = "_d" if build_var == 'debug' else ""
-    OPENEXR_VERSION_POSTFIX = "_d" if build_var == 'debug' else ""
+    libdir = bl_libs_dir.as_posix()
+
+    POSTFIX = "_d" if build_var == 'debug' else ""
+    EXT = ".exe" if OS == 'Windows' else ""
     LIBEXT = ".lib" if OS == 'Windows' else ".a"
     LIBPREFIX = "" if OS == 'Windows' else "lib"
-    SHAREDLIBEXT = ".lib" if OS == 'Windows' else ""
-    PYTHON_EXTENSION = ".exe" if OS == 'Windows' else ""
 
-    bl_libs_dir = bl_libs_dir.as_posix()
+    py_exe = f"{libdir}/python/310/bin/python{POSTFIX}{EXT}"
 
-    USD_CXX_FLAGS = "/DOIIO_STATIC_DEFINE /DOSL_STATIC_DEFINE"
-    USD_PLATFORM_FLAGS = [
-        f"-DCMAKE_CXX_FLAGS={USD_CXX_FLAGS}",
+    # USD_PLATFORM_FLAGS
+    args = [
+        "-DCMAKE_CXX_FLAGS=/DOIIO_STATIC_DEFINE /DOSL_STATIC_DEFINE",
         "-D_PXR_CXX_DEFINITIONS=/DBOOST_ALL_NO_LIB",
-        f"-DCMAKE_SHARED_LINKER_FLAGS_INIT=/LIBPATH:{bl_libs_dir}/tbb/lib",
+        f"-DCMAKE_SHARED_LINKER_FLAGS_INIT=/LIBPATH:{libdir}/tbb/lib",
         "-DPython_FIND_REGISTRY=NEVER",
-        f"-DPYTHON_INCLUDE_DIR={bl_libs_dir}/python/310/include",
-        f"-DPYTHON_LIBRARY={bl_libs_dir}/python/310/libs/python310{PYTHON_POSTFIX}{LIBEXT}",
+        f"-DPython3_EXECUTABLE={py_exe}",
     ]
+    if build_var == 'debug':
+        args += [
+            f"-DOIIO_LIBRARIES={libdir}/openimageio/lib/OpenImageIO_d{LIBEXT}^^{libdir}/openimageio/lib/OpenImageIO_util_d{LIBEXT}",
+            "-DPXR_USE_DEBUG_PYTHON=ON",
+            f"-DOPENVDB_LIBRARY={libdir}/openvdb/lib/openvdb_d.lib",
+        ]
 
-    DEFAULT_BOOST_FLAGS = [
+    # DEFAULT_BOOST_FLAGS
+    args += [
         f"-DBoost_COMPILER:STRING=-vc142",
         "-DBoost_USE_MULTITHREADED=ON",
         "-DBoost_USE_STATIC_LIBS=OFF",
         "-DBoost_USE_STATIC_RUNTIME=OFF",
-        f"-DBOOST_ROOT={bl_libs_dir}/boost",
+        f"-DBOOST_ROOT={libdir}/boost",
         "-DBoost_NO_SYSTEM_PATHS=ON",
         "-DBoost_NO_BOOST_CMAKE=ON",
         "-DBoost_ADDITIONAL_VERSIONS=1.80",
-        f"-DBOOST_LIBRARYDIR={bl_libs_dir}/boost/lib/",
+        f"-DBOOST_LIBRARYDIR={libdir}/boost/lib/",
         "-DBoost_USE_DEBUG_PYTHON=On"
     ]
 
-    USD_EXTRA_ARGS = [
-        f"-DOPENSUBDIV_ROOT_DIR={bl_libs_dir}/opensubdiv",
-        f"-DOpenImageIO_ROOT={bl_libs_dir}/openimageio",
-        f"-DOPENEXR_LIBRARIES={bl_libs_dir}/imath/lib/{LIBPREFIX}Imath{OPENEXR_VERSION_POSTFIX}{SHAREDLIBEXT}",
-        f"-DOPENEXR_INCLUDE_DIR={bl_libs_dir}/imath/include",
-        f"-DImath_DIR={bl_libs_dir}/imath",
-        f"-DOPENVDB_LOCATION={bl_libs_dir}/openvdb",
+    # USD_EXTRA_ARGS
+    args += [
+        f"-DOPENSUBDIV_ROOT_DIR={libdir}/opensubdiv",
+        f"-DOpenImageIO_ROOT={libdir}/openimageio",
+        #f"-DMaterialX_ROOT={libdir}/materialx",
+        f"-DMaterialX_DIR={bin_dir / 'materialx/install/lib/cmake/MaterialX'}",
+        f"-DOPENEXR_LIBRARIES={libdir}/imath/lib/{LIBPREFIX}Imath{POSTFIX}{LIBEXT}",
+        f"-DOPENEXR_INCLUDE_DIR={libdir}/imath/include",
+        f"-DImath_DIR={libdir}/imath",
+        f"-DOPENVDB_LOCATION={libdir}/openvdb",
         "-DPXR_ENABLE_PYTHON_SUPPORT=ON",
         "-DPXR_USE_PYTHON_3=ON",
         "-DPXR_BUILD_IMAGING=ON",
@@ -168,7 +176,6 @@ def usd(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
         "-DPXR_ENABLE_MATERIALX_SUPPORT=ON",
         "-DPXR_ENABLE_OPENVDB_SUPPORT=ON",
         f"-DPYTHON_EXECUTABLE={py_exe}",
-        f"-DPython3_EXECUTABLE={py_exe}",
         "-DPXR_BUILD_MONOLITHIC=ON",
         # OSL is an optional dependency of the Imaging module. However, since that
         # module was included for its support for converting primitive shapes (sphere,
@@ -189,21 +196,13 @@ def usd(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
         "-DPXR_BUILD_USD_TOOLS=OFF",
         "-DCMAKE_DEBUG_POSTFIX=_d",
         "-DBUILD_SHARED_LIBS=ON",
-        f"-DTBB_INCLUDE_DIRS={bl_libs_dir}/tbb/include",
-        f"-DTBB_LIBRARIES={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
-        f"-DTbb_TBB_LIBRARY={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
-        f"-DTBB_tbb_LIBRARY_RELEASE={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
+        f"-DTBB_INCLUDE_DIRS={libdir}/tbb/include",
+        f"-DTBB_LIBRARIES={libdir}/tbb/lib/{LIBPREFIX}tbb{LIBEXT}",
+        f"-DTbb_TBB_LIBRARY={libdir}/tbb/lib/{LIBPREFIX}tbb{LIBEXT}",
+        f"-DTBB_tbb_LIBRARY_RELEASE={libdir}/tbb/lib/{LIBPREFIX}tbb{LIBEXT}",
         # USD wants the tbb debug lib set even when you are doing a release build
         # Otherwise it will error out during the cmake configure phase.
-        # f"-DTBB_LIBRARIES_DEBUG={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
-        f"-DMaterialX_DIR={bin_dir}/materialx/install/lib/cmake/MaterialX",
-        # "-DTBB_USE_THREADING_TOOLS=0",
-        # "-DTBB_USE_DEBUG=0",
-        # "-DTBB_USE_DEBUG_BUILD=0",
-        # "-DTBB_PREVIEW_FLOW_GRAPH_TRACE=0",
-        # "-D__TBB_CPF_BUILD=0",
-        # "-DTBB_DEFINITIONS=-DTBB_USE_THREADING_TOOLS=0 -DTBB_USE_DEBUG_BUILD=0 -DTBB_USE_DEBUG=0",
-        # "-DTBB_DEFINITIONS_DEBUG=-DTBB_USE_THREADING_TOOLS=0 -DTBB_USE_DEBUG_BUILD=0 -DTBB_USE_DEBUG=0",
+        f"-DTBB_LIBRARIES_DEBUG={libdir}/tbb/lib/{LIBPREFIX}tbb{LIBEXT}",
     ]
 
     cur_dir = os.getcwd()
@@ -213,11 +212,7 @@ def usd(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
         # check_call('git', 'apply', '--whitespace=nowarn', str(repo_dir / "usd.diff"))
 
         try:
-            _cmake(usd_dir, bin_dir / "USD", compiler, jobs, build_var, clean, [
-                *DEFAULT_BOOST_FLAGS,
-                *USD_PLATFORM_FLAGS,
-                *USD_EXTRA_ARGS,
-            ])
+            _cmake(usd_dir, bin_dir / "USD", compiler, jobs, build_var, clean, args)
 
         finally:
             pass
