@@ -112,7 +112,7 @@ def materialx(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
     ])
 
 
-def usd(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
+def usd(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var, git_apply):
     print_start("Building USD")
 
     usd_dir = repo_dir / "USD"
@@ -209,38 +209,34 @@ def usd(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
     os.chdir(str(usd_dir))
 
     try:
-        # check_call('git', 'apply', '--whitespace=nowarn', str(repo_dir / "usd.diff"))
+        if git_apply:
+            check_call('git', 'apply', '--whitespace=nowarn', str(repo_dir / "usd.diff"))
 
         try:
             _cmake(usd_dir, bin_dir / "USD", compiler, jobs, build_var, clean, args)
-
         finally:
-            pass
-            # print("Reverting USD repo")
-            # check_call('git', 'checkout', '--', '*')
-            # check_call('git', 'clean', '-f')
+            if git_apply:
+                print("Reverting USD repo")
+                check_call('git', 'checkout', '--', '*')
+                check_call('git', 'clean', '-f')
 
     finally:
         os.chdir(cur_dir)
 
 
-def hdrpr(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
+def hdrpr(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var, git_apply):
     print_start("Building HdRPR")
 
     hdrpr_dir = repo_dir / "RadeonProRenderUSD"
     usd_dir = bin_dir / "USD/install"
 
-    if clean:
-        rm_dir(hdrpr_dir / "build")
+    libdir = bl_libs_dir.as_posix()
 
     os.environ['PXR_PLUGINPATH_NAME'] = str(usd_dir / "lib/usd")
 
-    PYTHON_SHORT_VERSION_NO_DOTS = 310
-    BOOST_VERSION_SHORT = 180
-    BOOST_COMPILER_STRING = "-vc142"
 
-    PYTHON_POSTFIX = "_d" if build_var == 'debug' else ""
-    OPENEXR_VERSION_POSTFIX = "_d" if build_var == 'debug' else ""
+    POSTFIX = "_d" if build_var == 'debug' else ""
+    EXT = ".exe" if OS == 'Windows' else ""
     LIBEXT = ".lib" if OS == 'Windows' else ".a"
     LIBPREFIX = "" if OS == 'Windows' else "lib"
     SHAREDLIBEXT = ".lib" if OS == 'Windows' else ""
@@ -253,43 +249,56 @@ def hdrpr(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
     path_str += f"{bin_dir / 'USD/install/lib'}" + os.pathsep
     os.environ['PATH'] = path_str + os.environ['PATH']
 
+    # Boost flags
+    args = [
+        f"-DBoost_COMPILER:STRING=-vc142",
+        "-DBoost_USE_MULTITHREADED=ON",
+        "-DBoost_USE_STATIC_LIBS=OFF",
+        "-DBoost_USE_STATIC_RUNTIME=OFF",
+        f"-DBOOST_ROOT={libdir}/boost",
+        "-DBoost_NO_SYSTEM_PATHS=ON",
+        "-DBoost_NO_BOOST_CMAKE=ON",
+        "-DBoost_ADDITIONAL_VERSIONS=1.80",
+        f"-DBOOST_LIBRARYDIR={libdir}/boost/lib/",
+        f"-DBoost_INCLUDE_DIR={libdir}/boost/include",
+        "-DBoost_USE_DEBUG_PYTHON=On"
+    ]
+
+    # HdRPR flags
+    args += [
+        f'-Dpxr_DIR={usd_dir}',
+        f"-DMaterialX_DIR={bin_dir / 'materialx/install/lib/cmake/MaterialX'}",
+        '-DRPR_BUILD_AS_HOUDINI_PLUGIN=FALSE',
+        f'-DPYTHON_EXECUTABLE={libdir}/python/310/bin/python{POSTFIX}{EXT}',
+        f"-DIMATH_INCLUDE_DIR={libdir}/imath/include/imath",
+        f"-DOPENEXR_INCLUDE_DIR={libdir}/openexr/include/OpenEXR",
+        f"-DImath_DIR={libdir}/imath",
+        '-DPXR_BUILD_MONOLITHIC=ON',
+        f'-DUSD_LIBRARY_DIR={usd_dir / "lib"}',
+        f'-DUSD_MONOLITHIC_LIBRARY={usd_dir / "lib" / ("usd_ms_d.lib" if build_var == "debug" else "usd_ms.lib")}',
+
+        f"-DTBB_INCLUDE_DIRS={libdir}/tbb/include",
+        f"-DTBB_LIBRARIES={libdir}/tbb/lib/{LIBPREFIX}tbb{LIBEXT}",
+        f"-DTbb_TBB_LIBRARY={libdir}/tbb/lib/{LIBPREFIX}tbb{LIBEXT}",
+        f"-DTBB_tbb_LIBRARY_RELEASE={libdir}/tbb/lib/{LIBPREFIX}tbb{LIBEXT}",
+        # USD wants the tbb debug lib set even when you are doing a release build
+        # Otherwise it will error out during the cmake configure phase.
+        f"-DTBB_LIBRARIES_DEBUG={libdir}/tbb/lib/{LIBPREFIX}tbb{LIBEXT}",
+    ]
+
     cur_dir = os.getcwd()
+    ch_dir(hdrpr_dir)
     try:
-        ch_dir(hdrpr_dir)
-        check_call('git', 'apply', '--whitespace=nowarn', str(repo_dir / "hdRpr.diff"))
+        if git_apply:
+            check_call('git', 'apply', '--whitespace=nowarn', str(repo_dir / "hdRpr.diff"))
 
-        DEFAULT_BOOST_FLAGS = [
-            f"-DBoost_COMPILER:STRING={BOOST_COMPILER_STRING}",
-            "-DBoost_USE_MULTITHREADED=ON",
-            "-DBoost_USE_STATIC_LIBS=OFF",
-            "-DBoost_USE_STATIC_RUNTIME=OFF",
-            f"-DBOOST_ROOT={bl_libs_dir}/boost",
-            "-DBoost_NO_SYSTEM_PATHS=ON",
-            "-DBoost_NO_BOOST_CMAKE=ON",
-            f"-DBoost_ADDITIONAL_VERSIONS={BOOST_VERSION_SHORT}",
-            f"-DBOOST_LIBRARYDIR={bl_libs_dir}/boost/lib/",
-            "-DBoost_USE_DEBUG_PYTHON=On"
-        ]
-
-        _cmake(hdrpr_dir, compiler, jobs, build_var, [
-            *DEFAULT_BOOST_FLAGS,
-            f'-Dpxr_DIR={usd_dir}',
-            f'-DCMAKE_INSTALL_PREFIX={bin_dir}/USD/install',
-            '-DRPR_BUILD_AS_HOUDINI_PLUGIN=FALSE',
-            f'-DPYTHON_EXECUTABLE={sys.executable}',
-            f"-DIMATH_INCLUDE_DIR={bl_libs_dir}/imath/include/imath",
-            f"-DOPENEXR_INCLUDE_DIR={bl_libs_dir}/openexr/include/OpenEXR",
-            f"-DBoost_INCLUDE_DIR={bl_libs_dir}/boost/include",
-            f"-DImath_DIR={bl_libs_dir}/imath",
-            '-DPXR_BUILD_MONOLITHIC=ON',
-            f'-DUSD_LIBRARY_DIR={usd_dir}/lib',
-            f'-DUSD_MONOLITHIC_LIBRARY={usd_dir / "lib" / ("usd_ms_d.lib" if build_var == "debug" else "usd_ms.lib")}',
-            f"-DTBB_LIBRARY={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
-            f"-DTBB_INCLUDE_DIR={bl_libs_dir}/tbb/include",
-        ])
+        try:
+            _cmake(hdrpr_dir, bin_dir / "hdrpr", compiler, jobs, build_var, clean, args)
+        finally:
+            if git_apply:
+                check_call('git', 'checkout', '--', '*')
 
     finally:
-        check_call('git', 'checkout', '--', '*')
         ch_dir(cur_dir)
 
 
@@ -444,6 +453,8 @@ def main():
                     help="Build variant for USD, HdRPR and dependencies. (default: release)")
     ap.add_argument("-clean", required=False, action="store_true",
                     help="Clean build dirs before start USD or HdRPR build")
+    ap.add_argument("-no-git-apply", required=False, action="store_true",
+                    help="Do not use `git apply usd.diff for USD repo`")
 
     args = ap.parse_args()
 
@@ -457,10 +468,10 @@ def main():
         materialx(bl_libs_dir, bin_dir, args.G, args.j, args.clean, args.build_var)
 
     if args.all or args.usd:
-        usd(bl_libs_dir, bin_dir, args.G, args.j, args.clean, args.build_var)
+        usd(bl_libs_dir, bin_dir, args.G, args.j, args.clean, args.build_var, not args.no_git_apply)
 
     if args.all or args.hdrpr:
-        hdrpr(bl_libs_dir, bin_dir, args.G, args.j, args.clean, args.build_var)
+        hdrpr(bl_libs_dir, bin_dir, args.G, args.j, args.clean, args.build_var, not args.no_git_apply)
 
     if args.all or args.addon:
         zip_addon(bin_dir)
