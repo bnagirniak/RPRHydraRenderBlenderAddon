@@ -115,108 +115,102 @@ def materialx(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
 def usd(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
     print_start("Building USD")
 
-    bl_libs_dir = bl_libs_dir.as_posix()
     usd_dir = repo_dir / "USD"
+    py_exe = bl_libs_dir / "python/310/bin/python.exe"
 
-    if clean:
-        rm_dir(usd_dir / "build")
+    PYTHON_POSTFIX = "_d" if build_var == 'debug' else ""
+    OPENEXR_VERSION_POSTFIX = "_d" if build_var == 'debug' else ""
+    LIBEXT = ".lib" if OS == 'Windows' else ".a"
+    LIBPREFIX = "" if OS == 'Windows' else "lib"
+    SHAREDLIBEXT = ".lib" if OS == 'Windows' else ""
+    PYTHON_EXTENSION = ".exe" if OS == 'Windows' else ""
+
+    bl_libs_dir = bl_libs_dir.as_posix()
+
+    USD_CXX_FLAGS = "/DOIIO_STATIC_DEFINE /DOSL_STATIC_DEFINE"
+    USD_PLATFORM_FLAGS = [
+        f"-DCMAKE_CXX_FLAGS={USD_CXX_FLAGS}",
+        "-D_PXR_CXX_DEFINITIONS=/DBOOST_ALL_NO_LIB",
+        f"-DCMAKE_SHARED_LINKER_FLAGS_INIT=/LIBPATH:{bl_libs_dir}/tbb/lib",
+        "-DPython_FIND_REGISTRY=NEVER",
+        f"-DPYTHON_INCLUDE_DIR={bl_libs_dir}/python/310/include",
+        f"-DPYTHON_LIBRARY={bl_libs_dir}/python/310/libs/python310{PYTHON_POSTFIX}{LIBEXT}",
+    ]
+
+    DEFAULT_BOOST_FLAGS = [
+        f"-DBoost_COMPILER:STRING=-vc142",
+        "-DBoost_USE_MULTITHREADED=ON",
+        "-DBoost_USE_STATIC_LIBS=OFF",
+        "-DBoost_USE_STATIC_RUNTIME=OFF",
+        f"-DBOOST_ROOT={bl_libs_dir}/boost",
+        "-DBoost_NO_SYSTEM_PATHS=ON",
+        "-DBoost_NO_BOOST_CMAKE=ON",
+        "-DBoost_ADDITIONAL_VERSIONS=1.80",
+        f"-DBOOST_LIBRARYDIR={bl_libs_dir}/boost/lib/",
+        "-DBoost_USE_DEBUG_PYTHON=On"
+    ]
+
+    USD_EXTRA_ARGS = [
+        f"-DOPENSUBDIV_ROOT_DIR={bl_libs_dir}/opensubdiv",
+        f"-DOpenImageIO_ROOT={bl_libs_dir}/openimageio",
+        f"-DOPENEXR_LIBRARIES={bl_libs_dir}/imath/lib/{LIBPREFIX}Imath{OPENEXR_VERSION_POSTFIX}{SHAREDLIBEXT}",
+        f"-DOPENEXR_INCLUDE_DIR={bl_libs_dir}/imath/include",
+        f"-DImath_DIR={bl_libs_dir}/imath",
+        f"-DOPENVDB_LOCATION={bl_libs_dir}/openvdb",
+        "-DPXR_ENABLE_PYTHON_SUPPORT=ON",
+        "-DPXR_USE_PYTHON_3=ON",
+        "-DPXR_BUILD_IMAGING=ON",
+        "-DPXR_BUILD_TESTS=OFF",
+        "-DPXR_BUILD_EXAMPLES=OFF",
+        "-DPXR_BUILD_TUTORIALS=OFF",
+        "-DPXR_BUILD_USDVIEW=OFF",
+        "-DPXR_ENABLE_HDF5_SUPPORT=OFF",
+        "-DPXR_ENABLE_MATERIALX_SUPPORT=ON",
+        "-DPXR_ENABLE_OPENVDB_SUPPORT=ON",
+        f"-DPYTHON_EXECUTABLE={py_exe}",
+        f"-DPython3_EXECUTABLE={py_exe}",
+        "-DPXR_BUILD_MONOLITHIC=ON",
+        # OSL is an optional dependency of the Imaging module. However, since that
+        # module was included for its support for converting primitive shapes (sphere,
+        # cube, etc.) to geometry, it's not necessary. Disabling it will make it
+        # simpler to build Blender; currently only Cycles uses OSL.
+        "-DPXR_ENABLE_OSL_SUPPORT=OFF",
+        # Enable OpenGL for Hydra support. Note that this indirectly also adds an X11
+        # dependency on Linux. This would be good to eliminate for headless and Wayland
+        # only builds, however is not worse than what Blender already links to for
+        # official releases currently.
+        "-DPXR_ENABLE_GL_SUPPORT=ON",
+        # OIIO is used for loading image textures in Hydra Storm / Embree renderers.
+        "-DPXR_BUILD_OPENIMAGEIO_PLUGIN=ON",
+        # USD 22.03 does not support OCIO 2.x
+        # Tracking ticket https://github.com/PixarAnimationStudios/USD/issues/1386
+        "-DPXR_BUILD_OPENCOLORIO_PLUGIN=OFF",
+        "-DPXR_ENABLE_PTEX_SUPPORT=OFF",
+        "-DPXR_BUILD_USD_TOOLS=OFF",
+        "-DCMAKE_DEBUG_POSTFIX=_d",
+        "-DBUILD_SHARED_LIBS=ON",
+        f"-DTBB_INCLUDE_DIRS={bl_libs_dir}/tbb/include",
+        f"-DTBB_LIBRARIES={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
+        f"-DTbb_TBB_LIBRARY={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
+        f"-DTBB_tbb_LIBRARY_RELEASE={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
+        # USD wants the tbb debug lib set even when you are doing a release build
+        # Otherwise it will error out during the cmake configure phase.
+        # f"-DTBB_LIBRARIES_DEBUG={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
+        f"-DMaterialX_DIR={bin_dir}/materialx/install/lib/cmake/MaterialX",
+        # "-DTBB_USE_THREADING_TOOLS=0",
+        # "-DTBB_USE_DEBUG=0",
+        # "-DTBB_USE_DEBUG_BUILD=0",
+        # "-DTBB_PREVIEW_FLOW_GRAPH_TRACE=0",
+        # "-D__TBB_CPF_BUILD=0",
+        # "-DTBB_DEFINITIONS=-DTBB_USE_THREADING_TOOLS=0 -DTBB_USE_DEBUG_BUILD=0 -DTBB_USE_DEBUG=0",
+        # "-DTBB_DEFINITIONS_DEBUG=-DTBB_USE_THREADING_TOOLS=0 -DTBB_USE_DEBUG_BUILD=0 -DTBB_USE_DEBUG=0",
+    ]
 
     cur_dir = os.getcwd()
     os.chdir(str(usd_dir))
 
     try:
         # check_call('git', 'apply', '--whitespace=nowarn', str(repo_dir / "usd.diff"))
-
-        PYTHON_SHORT_VERSION_NO_DOTS = 310
-        BOOST_VERSION_SHORT = 1.80
-        BOOST_COMPILER_STRING = "-vc142"
-
-        PYTHON_POSTFIX = "_d" if build_var == 'debug' else ""
-        OPENEXR_VERSION_POSTFIX = "_d" if build_var == 'debug' else ""
-        LIBEXT = ".lib" if OS == 'Windows' else ".a"
-        LIBPREFIX = "" if OS == 'Windows' else "lib"
-        SHAREDLIBEXT = ".lib" if OS == 'Windows' else ""
-        PYTHON_EXTENSION = ".exe" if OS == 'Windows' else ""
-
-        USD_CXX_FLAGS = "/DOIIO_STATIC_DEFINE /DOSL_STATIC_DEFINE"
-        USD_PLATFORM_FLAGS = [
-            f"-DCMAKE_CXX_FLAGS={USD_CXX_FLAGS}",
-            "-D_PXR_CXX_DEFINITIONS=/DBOOST_ALL_NO_LIB",
-            f"-DCMAKE_SHARED_LINKER_FLAGS_INIT=/LIBPATH:{bl_libs_dir}/tbb/lib",
-            "-DPython_FIND_REGISTRY=NEVER",
-            f"-DPYTHON_INCLUDE_DIR={bl_libs_dir}/python/{PYTHON_SHORT_VERSION_NO_DOTS}/include",
-            f"-DPYTHON_LIBRARY={bl_libs_dir}/python/{PYTHON_SHORT_VERSION_NO_DOTS}/libs/python{PYTHON_SHORT_VERSION_NO_DOTS}{PYTHON_POSTFIX}{LIBEXT}",
-        ]
-
-        DEFAULT_BOOST_FLAGS = [
-            f"-DBoost_COMPILER:STRING={BOOST_COMPILER_STRING}",
-            "-DBoost_USE_MULTITHREADED=ON",
-            "-DBoost_USE_STATIC_LIBS=OFF",
-            "-DBoost_USE_STATIC_RUNTIME=OFF",
-            f"-DBOOST_ROOT={bl_libs_dir}/boost",
-            "-DBoost_NO_SYSTEM_PATHS=ON",
-            "-DBoost_NO_BOOST_CMAKE=ON",
-            f"-DBoost_ADDITIONAL_VERSIONS={BOOST_VERSION_SHORT}",
-            f"-DBOOST_LIBRARYDIR={bl_libs_dir}/boost/lib/",
-            "-DBoost_USE_DEBUG_PYTHON=On"
-        ]
-
-        USD_EXTRA_ARGS = [
-            f"-DOPENSUBDIV_ROOT_DIR={bl_libs_dir}/opensubdiv",
-            f"-DOpenImageIO_ROOT={bl_libs_dir}/openimageio",
-            f"-DOPENEXR_LIBRARIES={bl_libs_dir}/imath/lib/{LIBPREFIX}Imath{OPENEXR_VERSION_POSTFIX}{SHAREDLIBEXT}",
-            f"-DOPENEXR_INCLUDE_DIR={bl_libs_dir}/imath/include",
-            f"-DImath_DIR={bl_libs_dir}/imath",
-            f"-DOPENVDB_LOCATION={bl_libs_dir}/openvdb",
-            "-DPXR_ENABLE_PYTHON_SUPPORT=ON",
-            "-DPXR_USE_PYTHON_3=ON",
-            "-DPXR_BUILD_IMAGING=ON",
-            "-DPXR_BUILD_TESTS=OFF",
-            "-DPXR_BUILD_EXAMPLES=OFF",
-            "-DPXR_BUILD_TUTORIALS=OFF",
-            "-DPXR_BUILD_USDVIEW=OFF",
-            "-DPXR_ENABLE_HDF5_SUPPORT=OFF",
-            "-DPXR_ENABLE_MATERIALX_SUPPORT=ON",
-            "-DPXR_ENABLE_OPENVDB_SUPPORT=ON",
-            f"-DPYTHON_EXECUTABLE={sys.executable}",
-            f"-DPython3_EXECUTABLE={sys.executable}",
-            "-DPXR_BUILD_MONOLITHIC=ON",
-            # OSL is an optional dependency of the Imaging module. However, since that
-            # module was included for its support for converting primitive shapes (sphere,
-            # cube, etc.) to geometry, it's not necessary. Disabling it will make it
-            # simpler to build Blender; currently only Cycles uses OSL.
-            "-DPXR_ENABLE_OSL_SUPPORT=OFF",
-            # Enable OpenGL for Hydra support. Note that this indirectly also adds an X11
-            # dependency on Linux. This would be good to eliminate for headless and Wayland
-            # only builds, however is not worse than what Blender already links to for
-            # official releases currently.
-            "-DPXR_ENABLE_GL_SUPPORT=ON",
-            # OIIO is used for loading image textures in Hydra Storm / Embree renderers.
-            "-DPXR_BUILD_OPENIMAGEIO_PLUGIN=ON",
-            # USD 22.03 does not support OCIO 2.x
-            # Tracking ticket https://github.com/PixarAnimationStudios/USD/issues/1386
-            "-DPXR_BUILD_OPENCOLORIO_PLUGIN=OFF",
-            "-DPXR_ENABLE_PTEX_SUPPORT=OFF",
-            "-DPXR_BUILD_USD_TOOLS=OFF",
-            "-DCMAKE_DEBUG_POSTFIX=_d",
-            "-DBUILD_SHARED_LIBS=ON",
-            f"-DTBB_INCLUDE_DIRS={bl_libs_dir}/tbb/include",
-            f"-DTBB_LIBRARIES={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
-            f"-DTbb_TBB_LIBRARY={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
-            f"-DTBB_tbb_LIBRARY_RELEASE={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
-            # USD wants the tbb debug lib set even when you are doing a release build
-            # Otherwise it will error out during the cmake configure phase.
-            # f"-DTBB_LIBRARIES_DEBUG={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
-            f"-DMaterialX_DIR={bin_dir}/materialx/install/lib/cmake/MaterialX",
-            # "-DTBB_USE_THREADING_TOOLS=0",
-            # "-DTBB_USE_DEBUG=0",
-            # "-DTBB_USE_DEBUG_BUILD=0",
-            # "-DTBB_PREVIEW_FLOW_GRAPH_TRACE=0",
-            # "-D__TBB_CPF_BUILD=0",
-            # "-DTBB_DEFINITIONS=-DTBB_USE_THREADING_TOOLS=0 -DTBB_USE_DEBUG_BUILD=0 -DTBB_USE_DEBUG=0",
-            # "-DTBB_DEFINITIONS_DEBUG=-DTBB_USE_THREADING_TOOLS=0 -DTBB_USE_DEBUG_BUILD=0 -DTBB_USE_DEBUG=0",
-        ]
-
 
         try:
             _cmake(usd_dir, bin_dir / "USD", compiler, jobs, build_var, clean, [
