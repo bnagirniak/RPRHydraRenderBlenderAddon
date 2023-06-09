@@ -322,7 +322,8 @@ def zip_addon(bin_dir):
     def enumerate_addon_data(bin_dir):
         libs_rel_path = Path('libs/lib')
         plugin_rel_path = Path('libs/plugin/usd/plugin')
-        plugin_path = bin_dir / 'USD/install/plugin'
+        inst_dir = bin_dir / 'install'
+        plugin_dir = inst_dir / 'plugin'
 
         # copy addon scripts
         hydrarpr_plugin_dir = repo_dir / 'src/hydrarpr'
@@ -356,25 +357,25 @@ def zip_addon(bin_dir):
             yield f, libs_rel_path / f.name
 
         # copy rprUsd library
-        rprusd_lib = hydrarpr_repo_dir / 'build/pxr/imaging/rprUsd/Release/rprUsd.dll'
+        rprusd_lib = inst_dir / 'lib/rprUsd.dll'
         yield rprusd_lib, libs_rel_path / rprusd_lib.name
 
         # copy hdRpr library
-        hdrpr_lib = hydrarpr_repo_dir / 'build/pxr/imaging/plugin/hdRpr/Release/hdRpr.dll'
+        hdrpr_lib = plugin_dir / 'usd/hdRpr.dll'
         yield hdrpr_lib, plugin_rel_path.parent / hdrpr_lib.name
 
         # copy plugInfo.json library
-        pluginfo = plugin_path / 'plugInfo.json'
+        pluginfo = plugin_dir / 'plugInfo.json'
         yield pluginfo, plugin_rel_path.parent.parent / pluginfo.name
 
         # copy plugin/usd folders
-        for f in plugin_path.glob("**/*"):
-            rel_path = f.relative_to(plugin_path.parent)
+        for f in plugin_dir.glob("**/*"):
+            rel_path = f.relative_to(plugin_dir.parent)
             if any(p in rel_path.parts for p in ("hdRpr", "rprUsd", 'rprUsdMetadata')):
                 yield f, libs_rel_path.parent / rel_path
 
         # copy python rpr
-        pyrpr_dir = bin_dir / 'USD/install/lib/python/rpr'
+        pyrpr_dir = bin_dir / 'install/lib/python/rpr'
         (pyrpr_dir / "RprUsd/__init__.py").write_text("")
         for f in (pyrpr_dir / "__init__.py", pyrpr_dir / "RprUsd/__init__.py"):
             yield f, Path("libs") / f.relative_to(pyrpr_dir.parent.parent)
@@ -432,7 +433,7 @@ def zip_addon(bin_dir):
     else:
         install_dir.mkdir()
 
-    zip_addon = create_zip_addon(install_dir, bin_dir, name, ver)
+    zip_addon = create_zip_addon(install_dir, bin_dir / "hdrpr", name, ver)
     print(f"Addon was compressed to: {zip_addon}")
 
 
