@@ -234,20 +234,10 @@ def hdrpr(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var, git_apply):
 
     os.environ['PXR_PLUGINPATH_NAME'] = str(usd_dir / "lib/usd")
 
-
     POSTFIX = "_d" if build_var == 'debug' else ""
     EXT = ".exe" if OS == 'Windows' else ""
     LIBEXT = ".lib" if OS == 'Windows' else ".a"
     LIBPREFIX = "" if OS == 'Windows' else "lib"
-    SHAREDLIBEXT = ".lib" if OS == 'Windows' else ""
-    PYTHON_EXTENSION = ".exe" if OS == 'Windows' else ""
-
-    path_str = ""
-    for deps in ['imath/bin', 'openexr/bin', 'openvdb/bin', 'OpenImageIO/bin', 'tbb/bin', 'boost/lib', 'MaterialX/bin']:
-        path_str += f"{bl_libs_dir / deps}" + os.pathsep
-
-    path_str += f"{bin_dir / 'USD/install/lib'}" + os.pathsep
-    os.environ['PATH'] = path_str + os.environ['PATH']
 
     # Boost flags
     args = [
@@ -270,20 +260,16 @@ def hdrpr(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var, git_apply):
         f"-DMaterialX_DIR={bin_dir / 'materialx/install/lib/cmake/MaterialX'}",
         '-DRPR_BUILD_AS_HOUDINI_PLUGIN=FALSE',
         f'-DPYTHON_EXECUTABLE={libdir}/python/310/bin/python{POSTFIX}{EXT}',
-        f"-DIMATH_INCLUDE_DIR={libdir}/imath/include/imath",
         f"-DOPENEXR_INCLUDE_DIR={libdir}/openexr/include/OpenEXR",
-        f"-DImath_DIR={libdir}/imath",
+        f"-DOPENEXR_LIBRARIES={libdir}/openexr/lib/{LIBPREFIX}OpenEXR{POSTFIX}{LIBEXT}",
+        f"-DImath_DIR={libdir}/imath/lib/cmake/Imath",
+        f"-DIMATH_INCLUDE_DIR={libdir}/imath/include/Imath",
         '-DPXR_BUILD_MONOLITHIC=ON',
         f'-DUSD_LIBRARY_DIR={usd_dir / "lib"}',
         f'-DUSD_MONOLITHIC_LIBRARY={usd_dir / "lib" / ("usd_ms_d.lib" if build_var == "debug" else "usd_ms.lib")}',
 
-        f"-DTBB_INCLUDE_DIRS={libdir}/tbb/include",
-        f"-DTBB_LIBRARIES={libdir}/tbb/lib/{LIBPREFIX}tbb{LIBEXT}",
-        f"-DTbb_TBB_LIBRARY={libdir}/tbb/lib/{LIBPREFIX}tbb{LIBEXT}",
-        f"-DTBB_tbb_LIBRARY_RELEASE={libdir}/tbb/lib/{LIBPREFIX}tbb{LIBEXT}",
-        # USD wants the tbb debug lib set even when you are doing a release build
-        # Otherwise it will error out during the cmake configure phase.
-        f"-DTBB_LIBRARIES_DEBUG={libdir}/tbb/lib/{LIBPREFIX}tbb{LIBEXT}",
+        f"-DTBB_INCLUDE_DIR={libdir}/tbb/include",
+        f"-DTBB_LIBRARY={libdir}/tbb/lib/{LIBPREFIX}tbb{LIBEXT}",
     ]
 
     cur_dir = os.getcwd()
