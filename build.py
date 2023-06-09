@@ -272,6 +272,29 @@ def hdrpr(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var, git_apply):
         f"-DTBB_LIBRARY={libdir}/tbb/lib/{LIBPREFIX}tbb{LIBEXT}",
     ]
 
+    # Adding required paths and preloading usd_ms.dll
+    pxr_init_py = usd_dir / "lib/python/pxr/__init__.py"
+    print(f"Modifying {pxr_init_py}")
+    pxr_init_py_text = pxr_init_py.read_text()
+    pxr_init_py.write_text(
+        pxr_init_py_text +
+f"""
+
+import os
+import ctypes
+
+os.add_dll_directory(r"{usd_dir / 'lib'}")
+os.add_dll_directory(r"{bl_libs_dir / 'boost/lib'}")
+os.add_dll_directory(r"{bl_libs_dir / 'tbb/bin'}")
+os.add_dll_directory(r"{bl_libs_dir / 'OpenImageIO/bin'}")
+os.add_dll_directory(r"{bl_libs_dir / 'openvdb/bin'}")
+os.add_dll_directory(r"{bin_dir / 'materialx/install/bin'}")
+os.add_dll_directory(r"{bl_libs_dir / 'imath/bin'}")
+os.add_dll_directory(r"{bl_libs_dir / 'openexr/bin'}")
+
+ctypes.CDLL(r"{usd_dir / 'lib/usd_ms.dll'}")
+""")
+
     cur_dir = os.getcwd()
     ch_dir(hdrpr_dir)
     try:
@@ -282,10 +305,13 @@ def hdrpr(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var, git_apply):
             _cmake(hdrpr_dir, bin_dir / "hdrpr", compiler, jobs, build_var, clean, args)
         finally:
             if git_apply:
+                print("Reverting HdRPR repo")
                 check_call('git', 'checkout', '--', '*')
 
     finally:
         ch_dir(cur_dir)
+        print(f"Reverting {pxr_init_py}")
+        pxr_init_py.write_text(pxr_init_py_text)
 
 
 def zip_addon(bin_dir):
