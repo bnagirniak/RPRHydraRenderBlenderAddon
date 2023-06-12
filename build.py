@@ -62,11 +62,16 @@ def print_start(msg):
 -------------------------------------------------------------""")
 
 
-def _cmake(d, compiler, jobs, build_var, args):
-    cur_dir = os.getcwd()
-    ch_dir(d)
+def _cmake(src_dir, bin_dir, compiler, jobs, build_var, clean, args):
+    if clean:
+        rm_dir(bin_dir)
 
-    build_args = ['-B', 'build', *args]
+    build_dir = bin_dir / "build"
+
+    build_args = ['-B', str(build_dir),
+                  '-S', str(src_dir),
+                  '--install-prefix', (bin_dir / "install").as_posix(),
+                  *args]
     if compiler:
         build_args += ['-G', compiler]
 
@@ -79,216 +84,234 @@ def _cmake(d, compiler, jobs, build_var, args):
                   'relwithdebuginfo': 'RelWithDebInfo'}[build_var]
 
     compile_args = [
-        '--build', 'build',
+        '--build', str(build_dir),
         '--config', build_name,
         '--target', 'install'
     ]
     if jobs > 0:
         compile_args += ['--', '-j', str(jobs)]
 
-    try:
-        check_call('cmake', *build_args)
-        check_call('cmake', *compile_args)
-
-    finally:
-        ch_dir(cur_dir)
+    check_call('cmake', *build_args)
+    check_call('cmake', *compile_args)
 
 
-def materialx(bin_dir, compiler, jobs, clean, build_var):
-    materialx_dir = repo_dir / "MaterialX"
+def materialx(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
+    py_exe = bl_libs_dir / "python/310/bin/python.exe"
 
-    if clean:
-        rm_dir(materialx_dir / "build")
-
-    _cmake(materialx_dir, compiler, jobs, build_var, [
+    _cmake(repo_dir / "MaterialX", bin_dir / "materialx", compiler, jobs, build_var, clean, [
+        '-DMATERIALX_BUILD_PYTHON=ON',
+        '-DMATERIALX_BUILD_RENDER=ON',
+        '-DMATERIALX_INSTALL_PYTHON=OFF',
+        f'-DMATERIALX_PYTHON_EXECUTABLE={py_exe.as_posix()}',
+        f'-DMATERIALX_PYTHON_VERSION=3.10',
         '-DMATERIALX_BUILD_SHARED_LIBS=ON',
-        f'-DCMAKE_INSTALL_PREFIX={bin_dir / "USD/install"}',
+        '-DMATERIALX_BUILD_TESTS=OFF',
+        '-DCMAKE_DEBUG_POSTFIX=_d',
+        f'-Dpybind11_ROOT=',
+        f'-DPython_EXECUTABLE={py_exe.as_posix()}',
     ])
 
 
-def usd(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
+def usd(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var, git_apply):
     print_start("Building USD")
 
-    bl_libs_dir = bl_libs_dir.as_posix()
     usd_dir = repo_dir / "USD"
 
-    if clean:
-        rm_dir(usd_dir / "build")
+    libdir = bl_libs_dir.as_posix()
+
+    POSTFIX = "_d" if build_var == 'debug' else ""
+    EXT = ".exe" if OS == 'Windows' else ""
+    LIBEXT = ".lib" if OS == 'Windows' else ".a"
+    LIBPREFIX = "" if OS == 'Windows' else "lib"
+
+    py_exe = f"{libdir}/python/310/bin/python{POSTFIX}{EXT}"
+
+    # USD_PLATFORM_FLAGS
+    args = [
+        "-DCMAKE_CXX_FLAGS=/DOIIO_STATIC_DEFINE /DOSL_STATIC_DEFINE",
+        "-D_PXR_CXX_DEFINITIONS=/DBOOST_ALL_NO_LIB",
+        f"-DCMAKE_SHARED_LINKER_FLAGS_INIT=/LIBPATH:{libdir}/tbb/lib",
+        "-DPython_FIND_REGISTRY=NEVER",
+        f"-DPython3_EXECUTABLE={py_exe}",
+    ]
+    if build_var == 'debug':
+        args += [
+            f"-DOIIO_LIBRARIES={libdir}/openimageio/lib/OpenImageIO_d{LIBEXT}^^{libdir}/openimageio/lib/OpenImageIO_util_d{LIBEXT}",
+            "-DPXR_USE_DEBUG_PYTHON=ON",
+            f"-DOPENVDB_LIBRARY={libdir}/openvdb/lib/openvdb_d.lib",
+        ]
+
+    # DEFAULT_BOOST_FLAGS
+    args += [
+        f"-DBoost_COMPILER:STRING=-vc142",
+        "-DBoost_USE_MULTITHREADED=ON",
+        "-DBoost_USE_STATIC_LIBS=OFF",
+        "-DBoost_USE_STATIC_RUNTIME=OFF",
+        f"-DBOOST_ROOT={libdir}/boost",
+        "-DBoost_NO_SYSTEM_PATHS=ON",
+        "-DBoost_NO_BOOST_CMAKE=ON",
+        "-DBoost_ADDITIONAL_VERSIONS=1.80",
+        f"-DBOOST_LIBRARYDIR={libdir}/boost/lib/",
+        "-DBoost_USE_DEBUG_PYTHON=On"
+    ]
+
+    # USD_EXTRA_ARGS
+    args += [
+        f"-DOPENSUBDIV_ROOT_DIR={libdir}/opensubdiv",
+        f"-DOpenImageIO_ROOT={libdir}/openimageio",
+        #f"-DMaterialX_ROOT={libdir}/materialx",
+        f"-DMaterialX_DIR={bin_dir / 'materialx/install/lib/cmake/MaterialX'}",
+        f"-DOPENEXR_LIBRARIES={libdir}/imath/lib/{LIBPREFIX}Imath{POSTFIX}{LIBEXT}",
+        f"-DOPENEXR_INCLUDE_DIR={libdir}/imath/include",
+        f"-DImath_DIR={libdir}/imath",
+        f"-DOPENVDB_LOCATION={libdir}/openvdb",
+        "-DPXR_ENABLE_PYTHON_SUPPORT=ON",
+        "-DPXR_USE_PYTHON_3=ON",
+        "-DPXR_BUILD_IMAGING=ON",
+        "-DPXR_BUILD_TESTS=OFF",
+        "-DPXR_BUILD_EXAMPLES=OFF",
+        "-DPXR_BUILD_TUTORIALS=OFF",
+        "-DPXR_BUILD_USDVIEW=OFF",
+        "-DPXR_ENABLE_HDF5_SUPPORT=OFF",
+        "-DPXR_ENABLE_MATERIALX_SUPPORT=ON",
+        "-DPXR_ENABLE_OPENVDB_SUPPORT=ON",
+        f"-DPYTHON_EXECUTABLE={py_exe}",
+        "-DPXR_BUILD_MONOLITHIC=ON",
+        # OSL is an optional dependency of the Imaging module. However, since that
+        # module was included for its support for converting primitive shapes (sphere,
+        # cube, etc.) to geometry, it's not necessary. Disabling it will make it
+        # simpler to build Blender; currently only Cycles uses OSL.
+        "-DPXR_ENABLE_OSL_SUPPORT=OFF",
+        # Enable OpenGL for Hydra support. Note that this indirectly also adds an X11
+        # dependency on Linux. This would be good to eliminate for headless and Wayland
+        # only builds, however is not worse than what Blender already links to for
+        # official releases currently.
+        "-DPXR_ENABLE_GL_SUPPORT=ON",
+        # OIIO is used for loading image textures in Hydra Storm / Embree renderers.
+        "-DPXR_BUILD_OPENIMAGEIO_PLUGIN=ON",
+        # USD 22.03 does not support OCIO 2.x
+        # Tracking ticket https://github.com/PixarAnimationStudios/USD/issues/1386
+        "-DPXR_BUILD_OPENCOLORIO_PLUGIN=OFF",
+        "-DPXR_ENABLE_PTEX_SUPPORT=OFF",
+        "-DPXR_BUILD_USD_TOOLS=OFF",
+        "-DCMAKE_DEBUG_POSTFIX=_d",
+        "-DBUILD_SHARED_LIBS=ON",
+        f"-DTBB_INCLUDE_DIRS={libdir}/tbb/include",
+        f"-DTBB_LIBRARIES={libdir}/tbb/lib/{LIBPREFIX}tbb{LIBEXT}",
+        f"-DTbb_TBB_LIBRARY={libdir}/tbb/lib/{LIBPREFIX}tbb{LIBEXT}",
+        f"-DTBB_tbb_LIBRARY_RELEASE={libdir}/tbb/lib/{LIBPREFIX}tbb{LIBEXT}",
+        # USD wants the tbb debug lib set even when you are doing a release build
+        # Otherwise it will error out during the cmake configure phase.
+        f"-DTBB_LIBRARIES_DEBUG={libdir}/tbb/lib/{LIBPREFIX}tbb{LIBEXT}",
+    ]
 
     cur_dir = os.getcwd()
     os.chdir(str(usd_dir))
 
     try:
-        check_call('git', 'apply', '--whitespace=nowarn', str(repo_dir / "usd.diff"))
-
-        PYTHON_SHORT_VERSION_NO_DOTS = 310
-        BOOST_VERSION_SHORT = 180
-        BOOST_COMPILER_STRING = "-vc142"
-
-        PYTHON_POSTFIX = "_d" if build_var == 'debug' else ""
-        OPENEXR_VERSION_POSTFIX = "_d" if build_var == 'debug' else ""
-        LIBEXT = ".lib" if OS == 'Windows' else ".a"
-        LIBPREFIX = "" if OS == 'Windows' else "lib"
-        SHAREDLIBEXT = ".lib" if OS == 'Windows' else ""
-        PYTHON_EXTENSION = ".exe" if OS == 'Windows' else ""
-
-        USD_CXX_FLAGS = "/DOIIO_STATIC_DEFINE /DOSL_STATIC_DEFINE"
-        USD_PLATFORM_FLAGS = [
-            f"-DCMAKE_CXX_FLAGS={USD_CXX_FLAGS}",
-            "-D_PXR_CXX_DEFINITIONS=/DBOOST_ALL_NO_LIB",
-            f"-DCMAKE_SHARED_LINKER_FLAGS_INIT=/LIBPATH:{bl_libs_dir}/tbb/lib",
-            "-DPython_FIND_REGISTRY=NEVER",
-            f"-DPYTHON_INCLUDE_DIRS={bl_libs_dir}/python/{PYTHON_SHORT_VERSION_NO_DOTS}/include",
-            f"-DPYTHON_LIBRARY={bl_libs_dir}/python/{PYTHON_SHORT_VERSION_NO_DOTS}/libs/python{PYTHON_SHORT_VERSION_NO_DOTS}{PYTHON_POSTFIX}{LIBEXT}"
-        ]
-
-        DEFAULT_BOOST_FLAGS = [
-            f"-DBoost_COMPILER:STRING={BOOST_COMPILER_STRING}",
-            "-DBoost_USE_MULTITHREADED=ON",
-            "-DBoost_USE_STATIC_LIBS=OFF",
-            "-DBoost_USE_STATIC_RUNTIME=OFF",
-            f"-DBOOST_ROOT={bl_libs_dir}/boost",
-            "-DBoost_NO_SYSTEM_PATHS=ON",
-            "-DBoost_NO_BOOST_CMAKE=ON",
-            f"-DBoost_ADDITIONAL_VERSIONS={BOOST_VERSION_SHORT}",
-            f"-DBOOST_LIBRARYDIR={bl_libs_dir}/boost/lib/",
-            "-DBoost_USE_DEBUG_PYTHON=On"
-        ]
-
-        USD_EXTRA_ARGS = [
-            *DEFAULT_BOOST_FLAGS,
-            *USD_PLATFORM_FLAGS,
-            f"-DOPENSUBDIV_ROOT_DIR={bl_libs_dir}/opensubdiv",
-            f"-DOpenImageIO_ROOT={bl_libs_dir}/openimageio",
-            f"-DOPENEXR_LIBRARIES={bl_libs_dir}/imath/lib/{LIBPREFIX}Imath{OPENEXR_VERSION_POSTFIX}{SHAREDLIBEXT}",
-            f"-DOPENEXR_INCLUDE_DIR={bl_libs_dir}/imath/include",
-            f"-DImath_DIR={bl_libs_dir}/imath",
-            f"-DOPENVDB_LOCATION={bl_libs_dir}/openvdb",
-            "-DPXR_ENABLE_PYTHON_SUPPORT=ON",
-            "-DPXR_USE_PYTHON_3=ON",
-            "-DPXR_BUILD_IMAGING=ON",
-            "-DPXR_BUILD_TESTS=OFF",
-            "-DPXR_BUILD_EXAMPLES=OFF",
-            "-DPXR_BUILD_TUTORIALS=OFF",
-            "-DPXR_BUILD_USDVIEW=OFF",
-            "-DPXR_ENABLE_HDF5_SUPPORT=OFF",
-            "-DPXR_ENABLE_MATERIALX_SUPPORT=ON",
-            "-DPXR_ENABLE_OPENVDB_SUPPORT=ON",
-            f"-DPYTHON_EXECUTABLE={sys.executable}",
-            "-DPXR_BUILD_MONOLITHIC=ON",
-            # OSL is an optional dependency of the Imaging module. However, since that
-            # module was included for its support for converting primitive shapes (sphere,
-            # cube, etc.) to geometry, it's not necessary. Disabling it will make it
-            # simpler to build Blender; currently only Cycles uses OSL.
-            "-DPXR_ENABLE_OSL_SUPPORT=OFF",
-            # Enable OpenGL for Hydra support. Note that this indirectly also adds an X11
-            # dependency on Linux. This would be good to eliminate for headless and Wayland
-            # only builds, however is not worse than what Blender already links to for
-            # official releases currently.
-            "-DPXR_ENABLE_GL_SUPPORT=ON",
-            # OIIO is used for loading image textures in Hydra Storm / Embree renderers.
-            "-DPXR_BUILD_OPENIMAGEIO_PLUGIN=ON",
-            # USD 22.03 does not support OCIO 2.x
-            # Tracking ticket https://github.com/PixarAnimationStudios/USD/issues/1386
-            "-DPXR_BUILD_OPENCOLORIO_PLUGIN=OFF",
-            "-DPXR_ENABLE_PTEX_SUPPORT=OFF",
-            "-DPXR_BUILD_USD_TOOLS=OFF",
-            "-DCMAKE_DEBUG_POSTFIX=_d",
-            "-DBUILD_SHARED_LIBS=ON",
-            f"-DTBB_INCLUDE_DIRS={bl_libs_dir}/tbb/include",
-            f"-DTBB_LIBRARIES={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
-            f"-DTbb_TBB_LIBRARY={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
-            f"-DTBB_tbb_LIBRARY_RELEASE={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
-            # USD wants the tbb debug lib set even when you are doing a release build
-            # Otherwise it will error out during the cmake configure phase.
-            f"-DTBB_LIBRARIES_DEBUG={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
-            f"-DBoost_INCLUDE_DIR={bl_libs_dir}/boost/include",
-            f"-DMaterialX_DIR={bin_dir}/USD/install/lib/cmake/MaterialX",
-        ]
-
+        if git_apply:
+            check_call('git', 'apply', '--whitespace=nowarn', str(repo_dir / "usd.diff"))
 
         try:
-            _cmake(usd_dir, compiler, jobs, build_var, [
-                *USD_EXTRA_ARGS,
-                f'-DCMAKE_INSTALL_PREFIX={bin_dir / "USD/install"}',
-            ])
-
+            _cmake(usd_dir, bin_dir / "USD", compiler, jobs, build_var, clean, args)
         finally:
-            print("Reverting USD repo")
-            check_call('git', 'checkout', '--', '*')
-            check_call('git', 'clean', '-f')
+            if git_apply:
+                print("Reverting USD repo")
+                check_call('git', 'checkout', '--', '*')
+                check_call('git', 'clean', '-f')
 
     finally:
         os.chdir(cur_dir)
 
 
-def hdrpr(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var):
+def hdrpr(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var, git_apply):
     print_start("Building HdRPR")
 
     hdrpr_dir = repo_dir / "RadeonProRenderUSD"
     usd_dir = bin_dir / "USD/install"
 
-    if clean:
-        rm_dir(hdrpr_dir / "build")
+    libdir = bl_libs_dir.as_posix()
 
     os.environ['PXR_PLUGINPATH_NAME'] = str(usd_dir / "lib/usd")
 
-    PYTHON_SHORT_VERSION_NO_DOTS = 310
-    BOOST_VERSION_SHORT = 180
-    BOOST_COMPILER_STRING = "-vc142"
-
-    PYTHON_POSTFIX = "_d" if build_var == 'debug' else ""
-    OPENEXR_VERSION_POSTFIX = "_d" if build_var == 'debug' else ""
+    POSTFIX = "_d" if build_var == 'debug' else ""
+    EXT = ".exe" if OS == 'Windows' else ""
     LIBEXT = ".lib" if OS == 'Windows' else ".a"
     LIBPREFIX = "" if OS == 'Windows' else "lib"
-    SHAREDLIBEXT = ".lib" if OS == 'Windows' else ""
-    PYTHON_EXTENSION = ".exe" if OS == 'Windows' else ""
 
-    path_str = ""
-    for deps in ['imath/bin', 'openexr/bin', 'openvdb/bin', 'OpenImageIO/bin', 'tbb/bin', 'boost/lib', 'MaterialX/bin']:
-        path_str += f"{bl_libs_dir / deps}" + os.pathsep
+    # Boost flags
+    args = [
+        f"-DBoost_COMPILER:STRING=-vc142",
+        "-DBoost_USE_MULTITHREADED=ON",
+        "-DBoost_USE_STATIC_LIBS=OFF",
+        "-DBoost_USE_STATIC_RUNTIME=OFF",
+        f"-DBOOST_ROOT={libdir}/boost",
+        "-DBoost_NO_SYSTEM_PATHS=ON",
+        "-DBoost_NO_BOOST_CMAKE=ON",
+        "-DBoost_ADDITIONAL_VERSIONS=1.80",
+        f"-DBOOST_LIBRARYDIR={libdir}/boost/lib/",
+        f"-DBoost_INCLUDE_DIR={libdir}/boost/include",
+        "-DBoost_USE_DEBUG_PYTHON=On"
+    ]
 
-    path_str += f"{bin_dir / 'USD/install/lib'}" + os.pathsep
-    os.environ['PATH'] = path_str + os.environ['PATH']
+    # HdRPR flags
+    args += [
+        f'-Dpxr_DIR={usd_dir}',
+        f"-DMaterialX_DIR={bin_dir / 'materialx/install/lib/cmake/MaterialX'}",
+        '-DRPR_BUILD_AS_HOUDINI_PLUGIN=FALSE',
+        f'-DPYTHON_EXECUTABLE={libdir}/python/310/bin/python{POSTFIX}{EXT}',
+        f"-DOPENEXR_INCLUDE_DIR={libdir}/openexr/include/OpenEXR",
+        f"-DOPENEXR_LIBRARIES={libdir}/openexr/lib/{LIBPREFIX}OpenEXR{POSTFIX}{LIBEXT}",
+        f"-DImath_DIR={libdir}/imath/lib/cmake/Imath",
+        f"-DIMATH_INCLUDE_DIR={libdir}/imath/include/Imath",
+        '-DPXR_BUILD_MONOLITHIC=ON',
+        f'-DUSD_LIBRARY_DIR={usd_dir / "lib"}',
+        f'-DUSD_MONOLITHIC_LIBRARY={usd_dir / "lib" / ("usd_ms_d.lib" if build_var == "debug" else "usd_ms.lib")}',
+
+        f"-DTBB_INCLUDE_DIR={libdir}/tbb/include",
+        f"-DTBB_LIBRARY={libdir}/tbb/lib/{LIBPREFIX}tbb{LIBEXT}",
+    ]
+
+    # Adding required paths and preloading usd_ms.dll
+    pxr_init_py = usd_dir / "lib/python/pxr/__init__.py"
+    print(f"Modifying {pxr_init_py}")
+    pxr_init_py_text = pxr_init_py.read_text()
+    pxr_init_py.write_text(
+        pxr_init_py_text +
+f"""
+
+import os
+import ctypes
+
+os.add_dll_directory(r"{usd_dir / 'lib'}")
+os.add_dll_directory(r"{bl_libs_dir / 'boost/lib'}")
+os.add_dll_directory(r"{bl_libs_dir / 'tbb/bin'}")
+os.add_dll_directory(r"{bl_libs_dir / 'OpenImageIO/bin'}")
+os.add_dll_directory(r"{bl_libs_dir / 'openvdb/bin'}")
+os.add_dll_directory(r"{bin_dir / 'materialx/install/bin'}")
+os.add_dll_directory(r"{bl_libs_dir / 'imath/bin'}")
+os.add_dll_directory(r"{bl_libs_dir / 'openexr/bin'}")
+
+ctypes.CDLL(r"{usd_dir / 'lib/usd_ms.dll'}")
+""")
 
     cur_dir = os.getcwd()
+    ch_dir(hdrpr_dir)
     try:
-        ch_dir(hdrpr_dir)
-        check_call('git', 'apply', '--whitespace=nowarn', str(repo_dir / "hdRpr.diff"))
+        if git_apply:
+            check_call('git', 'apply', '--whitespace=nowarn', str(repo_dir / "hdRpr.diff"))
 
-        DEFAULT_BOOST_FLAGS = [
-            f"-DBoost_COMPILER:STRING={BOOST_COMPILER_STRING}",
-            "-DBoost_USE_MULTITHREADED=ON",
-            "-DBoost_USE_STATIC_LIBS=OFF",
-            "-DBoost_USE_STATIC_RUNTIME=OFF",
-            f"-DBOOST_ROOT={bl_libs_dir}/boost",
-            "-DBoost_NO_SYSTEM_PATHS=ON",
-            "-DBoost_NO_BOOST_CMAKE=ON",
-            f"-DBoost_ADDITIONAL_VERSIONS={BOOST_VERSION_SHORT}",
-            f"-DBOOST_LIBRARYDIR={bl_libs_dir}/boost/lib/",
-            "-DBoost_USE_DEBUG_PYTHON=On"
-        ]
-
-        _cmake(hdrpr_dir, compiler, jobs, build_var, [
-            *DEFAULT_BOOST_FLAGS,
-            f'-Dpxr_DIR={usd_dir}',
-            f'-DCMAKE_INSTALL_PREFIX={bin_dir}/USD/install',
-            '-DRPR_BUILD_AS_HOUDINI_PLUGIN=FALSE',
-            f'-DPYTHON_EXECUTABLE={sys.executable}',
-            f"-DIMATH_INCLUDE_DIR={bl_libs_dir}/imath/include/imath",
-            f"-DOPENEXR_INCLUDE_DIR={bl_libs_dir}/openexr/include/OpenEXR",
-            f"-DBoost_INCLUDE_DIR={bl_libs_dir}/boost/include",
-            f"-DImath_DIR={bl_libs_dir}/imath",
-            '-DPXR_BUILD_MONOLITHIC=ON',
-            f'-DUSD_LIBRARY_DIR={usd_dir}/lib',
-            f'-DUSD_MONOLITHIC_LIBRARY={usd_dir / "lib" / ("usd_ms_d.lib" if build_var == "debug" else "usd_ms.lib")}',
-            f"-DTBB_LIBRARY={bl_libs_dir}/tbb/lib/{LIBPREFIX}tbb{SHAREDLIBEXT}",
-            f"-DTBB_INCLUDE_DIR={bl_libs_dir}/tbb/include",
-        ])
+        try:
+            _cmake(hdrpr_dir, bin_dir / "hdrpr", compiler, jobs, build_var, clean, args)
+        finally:
+            if git_apply:
+                print("Reverting HdRPR repo")
+                check_call('git', 'checkout', '--', '*')
 
     finally:
-        check_call('git', 'checkout', '--', '*')
         ch_dir(cur_dir)
+        print(f"Reverting {pxr_init_py}")
+        pxr_init_py.write_text(pxr_init_py_text)
 
 
 def zip_addon(bin_dir):
@@ -299,7 +322,8 @@ def zip_addon(bin_dir):
     def enumerate_addon_data(bin_dir):
         libs_rel_path = Path('libs/lib')
         plugin_rel_path = Path('libs/plugin/usd/plugin')
-        plugin_path = bin_dir / 'USD/install/plugin'
+        inst_dir = bin_dir / 'install'
+        plugin_dir = inst_dir / 'plugin'
 
         # copy addon scripts
         hydrarpr_plugin_dir = repo_dir / 'src/hydrarpr'
@@ -333,25 +357,25 @@ def zip_addon(bin_dir):
             yield f, libs_rel_path / f.name
 
         # copy rprUsd library
-        rprusd_lib = hydrarpr_repo_dir / 'build/pxr/imaging/rprUsd/Release/rprUsd.dll'
+        rprusd_lib = inst_dir / 'lib/rprUsd.dll'
         yield rprusd_lib, libs_rel_path / rprusd_lib.name
 
         # copy hdRpr library
-        hdrpr_lib = hydrarpr_repo_dir / 'build/pxr/imaging/plugin/hdRpr/Release/hdRpr.dll'
+        hdrpr_lib = plugin_dir / 'usd/hdRpr.dll'
         yield hdrpr_lib, plugin_rel_path.parent / hdrpr_lib.name
 
         # copy plugInfo.json library
-        pluginfo = plugin_path / 'plugInfo.json'
+        pluginfo = plugin_dir / 'plugInfo.json'
         yield pluginfo, plugin_rel_path.parent.parent / pluginfo.name
 
         # copy plugin/usd folders
-        for f in plugin_path.glob("**/*"):
-            rel_path = f.relative_to(plugin_path.parent)
+        for f in plugin_dir.glob("**/*"):
+            rel_path = f.relative_to(plugin_dir.parent)
             if any(p in rel_path.parts for p in ("hdRpr", "rprUsd", 'rprUsdMetadata')):
                 yield f, libs_rel_path.parent / rel_path
 
         # copy python rpr
-        pyrpr_dir = bin_dir / 'USD/install/lib/python/rpr'
+        pyrpr_dir = bin_dir / 'install/lib/python/rpr'
         (pyrpr_dir / "RprUsd/__init__.py").write_text("")
         for f in (pyrpr_dir / "__init__.py", pyrpr_dir / "RprUsd/__init__.py"):
             yield f, Path("libs") / f.relative_to(pyrpr_dir.parent.parent)
@@ -409,7 +433,7 @@ def zip_addon(bin_dir):
     else:
         install_dir.mkdir()
 
-    zip_addon = create_zip_addon(install_dir, bin_dir, name, ver)
+    zip_addon = create_zip_addon(install_dir, bin_dir / "hdrpr", name, ver)
     print(f"Addon was compressed to: {zip_addon}")
 
 
@@ -438,10 +462,12 @@ def main():
     ap.add_argument("-j", required=False, type=int, default=0,
                     help="Number of jobs run in parallel")
     ap.add_argument("-build-var", required=False, type=str, default="release",
-                    choices=('release', 'relwithdebuginfo'),  # TODO: add 'debug' build variant
+                    choices=('release', 'relwithdebuginfo', 'debug'),  # TODO: add 'debug' build variant
                     help="Build variant for USD, HdRPR and dependencies. (default: release)")
     ap.add_argument("-clean", required=False, action="store_true",
                     help="Clean build dirs before start USD or HdRPR build")
+    ap.add_argument("-no-git-apply", required=False, action="store_true",
+                    help="Do not use `git apply usd.diff for USD repo`")
 
     args = ap.parse_args()
 
@@ -452,13 +478,13 @@ def main():
     bin_dir.mkdir(parents=True, exist_ok=True)
 
     if args.all or args.materialx:
-        materialx(bin_dir, args.G, args.j, args.clean, args.build_var)
+        materialx(bl_libs_dir, bin_dir, args.G, args.j, args.clean, args.build_var)
 
     if args.all or args.usd:
-        usd(bl_libs_dir, bin_dir, args.G, args.j, args.clean, args.build_var)
+        usd(bl_libs_dir, bin_dir, args.G, args.j, args.clean, args.build_var, not args.no_git_apply)
 
     if args.all or args.hdrpr:
-        hdrpr(bl_libs_dir, bin_dir, args.G, args.j, args.clean, args.build_var)
+        hdrpr(bl_libs_dir, bin_dir, args.G, args.j, args.clean, args.build_var, not args.no_git_apply)
 
     if args.all or args.addon:
         zip_addon(bin_dir)
