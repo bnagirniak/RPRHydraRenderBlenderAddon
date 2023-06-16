@@ -299,7 +299,8 @@ ctypes.CDLL(r"{usd_dir / 'lib/usd_ms.dll'}")
     ch_dir(hdrpr_dir)
     try:
         if git_apply:
-            check_call('git', 'apply', '--whitespace=nowarn', str(repo_dir / "hdRpr.diff"))
+            check_call('git', 'apply', '--whitespace=nowarn', str(repo_dir / "hdRpr_matx.diff"))
+            check_call('git', 'apply', '--whitespace=nowarn', str(repo_dir / "hdrpr_libs.diff"))
 
         try:
             _cmake(hdrpr_dir, bin_dir / "hdrpr", compiler, jobs, build_var, clean, args)
