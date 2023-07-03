@@ -270,6 +270,7 @@ def hdrpr(bl_libs_dir, bin_dir, compiler, jobs, clean, build_var, git_apply):
 
         f"-DTBB_INCLUDE_DIR={libdir}/tbb/include",
         f"-DTBB_LIBRARY={libdir}/tbb/lib/{LIBPREFIX}tbb{LIBEXT}",
+        f"-DOPENVDB_LOCATION={libdir}/openvdb",
     ]
 
     # Adding required paths and preloading usd_ms.dll
