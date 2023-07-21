@@ -99,6 +99,14 @@ class RPRHydraRenderEngine(bpy_hydra.HydraRenderEngine):
 
         return result
 
+    def update_render_passes(self, scene, render_layer):
+        if render_layer.use_pass_z:
+            self.register_pass(scene, render_layer, 'Depth', 1, 'Z', 'VALUE')
+        if render_layer.use_pass_normal:
+            self.register_pass(scene, render_layer, 'Normal', 3, 'XYZ', 'VECTOR')
+        if render_layer.use_pass_position:
+            self.register_pass(scene, render_layer, 'Position', 4, 'XYZA', 'VECTOR')
+
 
 register, unregister = bpy.utils.register_classes_factory((
     RPRHydraRenderEngine,
