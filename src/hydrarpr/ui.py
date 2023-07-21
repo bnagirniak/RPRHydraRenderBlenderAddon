@@ -300,12 +300,12 @@ class RPR_HYDRA_RENDER_PT_passes_data(Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        scene = context.scene
         view_layer = context.view_layer
 
         col = layout.column(heading="Include", align=True)
-        col.prop(view_layer, "use_pass_combined")
         col.prop(view_layer, "use_pass_z")
+        col.prop(view_layer, "use_pass_normal")
+        col.prop(view_layer, "use_pass_position")
 
 
 register_classes, unregister_classes = bpy.utils.register_classes_factory((
