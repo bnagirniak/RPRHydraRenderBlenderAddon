@@ -92,6 +92,11 @@ class RPRHydraRenderEngine(bpy_hydra.HydraRenderEngine):
                 'rpr:quality:rayDepthShadow': quality.max_ray_depth_shadow,
                 'rpr:quality:raycastEpsilon': quality.raycast_epsilon,
                 'rpr:quality:radianceClamping': quality.radiance_clamping,
+
+                'aov:Combined': "color",
+                'aov:Depth': "depth",
+                'aov:Normal': "normal",
+                'aov:Position': "worldCoordinate",
             }
 
         if settings.render_quality == 'Northstar':
