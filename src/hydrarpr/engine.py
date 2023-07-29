@@ -92,12 +92,25 @@ class RPRHydraRenderEngine(bpy.types.HydraRenderEngine):
                 'rpr:quality:rayDepthShadow': quality.max_ray_depth_shadow,
                 'rpr:quality:raycastEpsilon': quality.raycast_epsilon,
                 'rpr:quality:radianceClamping': quality.radiance_clamping,
+
+                'aovToken:Combined': "color",
+                'aovToken:Depth': "depth",
+                'aovToken:Normal': "normal",
+                'aovToken:Position': "worldCoordinate",
             }
 
         if settings.render_quality == 'Northstar':
             result['rpr:quality:imageFilterRadius'] = settings.quality.pixel_filter_width
 
         return result
+
+    def update_render_passes(self, scene, render_layer):
+        if render_layer.use_pass_z:
+            self.register_pass(scene, render_layer, 'Depth', 1, 'Z', 'VALUE')
+        if render_layer.use_pass_normal:
+            self.register_pass(scene, render_layer, 'Normal', 3, 'XYZ', 'VECTOR')
+        if render_layer.use_pass_position:
+            self.register_pass(scene, render_layer, 'Position', 4, 'XYZA', 'VECTOR')
 
 
 register, unregister = bpy.utils.register_classes_factory((

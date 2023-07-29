@@ -282,6 +282,32 @@ class RPR_HYDRA_LIGHT_PT_light(Panel):
                 main_col.prop(light, 'size')
 
 
+class RPR_HYDRA_RENDER_PT_passes(Panel):
+    bl_label = "Passes"
+    bl_context = "view_layer"
+
+    def draw(self, context):
+        pass
+
+
+class RPR_HYDRA_RENDER_PT_passes_data(Panel):
+    bl_label = "Data"
+    bl_context = "view_layer"
+    bl_parent_id = "RPR_HYDRA_RENDER_PT_passes"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        view_layer = context.view_layer
+
+        col = layout.column(heading="Include", align=True)
+        col.prop(view_layer, "use_pass_z")
+        col.prop(view_layer, "use_pass_normal")
+        col.prop(view_layer, "use_pass_position")
+
+
 register_classes, unregister_classes = bpy.utils.register_classes_factory((
     RPR_HYDRA_RENDER_PT_final,
     RPR_HYDRA_RENDER_PT_samples_final,
@@ -297,6 +323,9 @@ register_classes, unregister_classes = bpy.utils.register_classes_factory((
     RPR_HYDRA_RENDER_PT_pixel_filter_viewport,
 
     RPR_HYDRA_LIGHT_PT_light,
+
+    RPR_HYDRA_RENDER_PT_passes,
+    RPR_HYDRA_RENDER_PT_passes_data,
 ))
 
 
