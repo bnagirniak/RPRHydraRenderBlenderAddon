@@ -16,28 +16,28 @@ import os
 from pathlib import Path
 import sys
 
+from pxr import Plug
+
 import bpy
-import bpy_hydra
 
 
 LIBS_DIR = Path(__file__).parent / "libs"
 
 
-class RPRHydraRenderEngine(bpy_hydra.HydraRenderEngine):
+class RPRHydraRenderEngine(bpy.types.HydraRenderEngine):
     bl_idname = 'RPRHydraRenderEngine'
-    bl_label = "Hydra: RPR"
+    bl_label = "Hydra RPR"
     bl_info = "Hydra Radeon ProRender delegate"
 
     bl_use_preview = True
 
-    delegate_id = "HdRprPlugin"
+    bl_delegate_id = "HdRprPlugin"
 
     @classmethod
     def register(cls):
-        super().register()
         os.environ['PATH'] = os.environ['PATH'] + os.pathsep + str(LIBS_DIR / "lib")
         sys.path.append(str(LIBS_DIR / "python"))
-        bpy_hydra.register_plugins([str(LIBS_DIR / "plugin")])
+        Plug.Registry().RegisterPlugins(str(LIBS_DIR / "plugin"))
 
     def get_sync_settings(self, engine_type):
         return {
