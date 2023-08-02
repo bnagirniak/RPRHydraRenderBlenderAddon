@@ -350,11 +350,15 @@ def get_panels():
         'EEVEE_MATERIAL_PT_settings',
         'EEVEE_WORLD_PT_surface',
     }
+    include_hydra_panels = {
+        "RENDER_PT_hydra_debug",
+    }
 
     for panel_cls in bpy.types.Panel.__subclasses__():
         if hasattr(panel_cls, 'COMPAT_ENGINES') and (
                 ('BLENDER_RENDER' in panel_cls.COMPAT_ENGINES and panel_cls.__name__ not in exclude_panels) or
-                ('BLENDER_EEVEE' in panel_cls.COMPAT_ENGINES and panel_cls.__name__ in include_eevee_panels)
+                ('BLENDER_EEVEE' in panel_cls.COMPAT_ENGINES and panel_cls.__name__ in include_eevee_panels) or
+                (panel_cls.__name__ in include_hydra_panels)
         ):
             yield panel_cls
 
