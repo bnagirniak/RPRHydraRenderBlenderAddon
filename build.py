@@ -411,7 +411,7 @@ def zip_addon(bin_dir):
 
                 if str(package_path) == "__init__.py":
                     print(f"    set version_build={ver[3]}")
-                    text = src.read_text()
+                    text = src.read_text(encoding='utf-8')
                     text = text.replace('version_build = ""', f'version_build = "{ver[3]}"')
                     myzip.writestr(arcname, text)
                     continue
