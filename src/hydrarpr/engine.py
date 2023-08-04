@@ -39,19 +39,6 @@ class RPRHydraRenderEngine(bpy.types.HydraRenderEngine):
         sys.path.append(str(LIBS_DIR / "python"))
         Plug.Registry().RegisterPlugins(str(LIBS_DIR / "plugin"))
 
-    def get_sync_settings(self, engine_type):
-        return {
-            'MaterialXFilenameKey': "MaterialXFilename",
-            'rpr:object:visibility:camera': False,
-            'rpr:object:visibility:shadow': False,
-            'rpr:object:visibility:reflection': True,
-            'rpr:object:visibility:glossyReflection': True,
-            'rpr:object:visibility:refraction': True,
-            'rpr:object:visibility:glossyRefraction': True,
-            'rpr:object:visibility:diffuse': True,
-            'rpr:object:visibility:transparent': True,
-        }
-
     def get_render_settings(self, engine_type):
         if engine_type == 'VIEWPORT':
             settings = bpy.context.scene.hydra_rpr.viewport
